@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+ <html lang="id">
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Terasyaqub Photobooth — Banjarmasin</title>
+     <style>
+         * { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; }
+         body { background: #f8f0e5; text-align:center; padding:20px; }
+         h1 { color: #8b4513; margin-bottom:10px; }
+         .logo { max-width:150px; margin-bottom:15px; }
+         #camera { width:100%; max-width:500px; border-radius:12px; border:4px solid #d2b48c; background:#000; }
+         .countdown { font-size:80px; color:#8b4513; font-weight:bold; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events:none; display:none; }
+         .btn { padding:15px 40px; font-size:22px; background:#8b4513; color:white; border:none; border-radius:10px; cursor:pointer; margin:15px; font-weight:bold; }
+         .btn:hover { background:#a0522d; }
+         .preview-container { display:flex; justify-content:center; gap:8px; margin-top:20px; flex-wrap:wrap; }
+         .preview-img { width:120px; height:160px; object-fit:cover; border-radius:6px; border:2px solid #d2b48c; background:white; }
+         .strip-container { margin-top:30px; background:white; padding:20px; border-radius:12px; border:3px solid #8b4513; max-width:320px; margin-left:auto; margin-right:auto; }
+         .strip-title { color:#8b4513; font-weight:bold; margin-bottom:10px; font-size:18px; }
+         .strip-location { color:#666; font-size:14px; margin-bottom:15px; }
+         #downloadBtn { display:none; }
+     </style>
+ </head>
+ <body>
+     <img src="https://via.placeholder.com/150?text=TERASYAQUB" alt="Terasyaqub Logo" class="logo">
+     <h1>📸 TERASYAQUB PHOTOBOOTH</h1>
+     <p class="strip-location">Banjarmasin • Kalimantan Selatan</p>
+     <div style="position:relative; display:inline-block;">
+         <video id="camera" autoplay playsinline></video>
+         <div class="countdown" id="countdown"></div>
+     </div>
+     <div>
+         <button class="btn" id="startBtn">📷 MULAI FOTO</button>
+         <button class="btn" id="resetBtn" style="background:#555;">🔄 ULANGI</button>
+         <button class="btn" id="downloadBtn">💾 SIMPAN / CETAK</button>
+     </div>
+     <div class="preview-container" id="previewContainer"></div>
+     <div class="strip-container" id="stripContainer" style="display:none;">
+         <div class="strip-title">✨ TERASYAQUB BANJARMASIN ✨</div>
+         <div class="strip-location">Jl. — Banjarmasin | IG: @terasyaqub_banjarmasin</div>
+         <canvas id="stripCanvas" width="280" height="900"></canvas>
+     </div>
+     <script>
+         const video = document.getElementById('camera');
+         const countdownEl = document.getElementById('countdown');
+         const startBtn = document.getElementById('startBtn');
+         const resetBtn = document.getElementById('resetBtn');
+         const downloadBtn = document.getElementById('downloadBtn');
+         const previewContainer = document.getElementById('previewContainer');
+         const stripContainer = document.getElementById('stripContainer');
+         const stripCanvas = document.getElementById('stripCanvas');
+         const ctx = stripCanvas.getContext('2d');
+         let photos = [];
+         const TOTAL_PHOTOS = 4;
+         // Akses Kamera
+         navigator.mediaDevices.getUserMedia({ 
+             video: { facingMode: 'environment', width:1280, height:720 } 
+         })
+         .then(stream => video.srcObject = stream)
+         .catch(err => alert('Izinkan akses kamera! ' + err));
+         // Hitung Mundur
+         async function startCountdown(seconds=3) {
+             for (let i=seconds; i>=1; i--) {
+                 countdownEl.style.display = 'block';
+                 countdownEl.textContent = i;
+                 await new Promise(r => setTimeout(r, 1000));
+             }
+             countdownEl.textContent = '📸';
+             await new Promise(r => setTimeout(r, 300));
+             countdownEl.style.display = 'none';
+         }
+         // Ambil Foto
+         async function capturePhotos() {
+             photos = [];
+             previewContainer.innerHTML = '';
+             
+             for (let i=0; i<TOTAL_PHOTOS; i++) {
+                 await startCountdown(3);
+                 const canvas = document.createElement('canvas');
+                 canvas.width = video.videoWidth;
+                 canvas.height = video.videoHeight;
+                 canvas.getContext('2d').drawImage(video, 0, 0);
+                 photos.push(canvas.toDataURL('image/png'));
+                 
+                 // Tampilkan pratinjau
+                 const img = new Image();
+                 img.src = photos[i];
+                 img.className = 'preview-img';
+                 previewContainer.appendChild(img);
+                 
+                 await new Promise(r => setTimeout(r, 500));
+             }
+             buildStrip();
+         }
+         // Buat Strip Foto
+         function buildStrip() {
+             stripContainer.style.display = 'block';
+             downloadBtn.style.display = 'inline-block';
+             
+             // Latar belakang
+             ctx.fillStyle = '#fff9f0';
+             ctx.fillRect(0, 0, 280, 900);
+             // Garis bingkai
+             ctx.strokeStyle = '#8b4513';
+             ctx.lineWidth = 4;
+             ctx.strokeRect(10, 10, 260, 880);
+             // Judul
+             ctx.fillStyle = '#8b4513';
+             ctx.font = 'bold 22px sans-serif';
+             ctx.textAlign = 'center';
+             ctx.fillText('✨ TERASYAQUB ✨', 140, 45);
+             ctx.font = '14px sans-serif';
+             ctx.fillStyle = '#444';
+             ctx.fillText('Banjarmasin, Kalimantan Selatan', 140, 70);
+             // Masukkan setiap foto
+             photos.forEach((src, idx) => {
+                 const img = new Image();
+                 img.onload = () => {
+                     const y = 80 + idx * 205;
+                     ctx.drawImage(img, 20, y, 240, 180);
+                     if (idx === photos.length - 1) {
+                         ctx.font = 'bold 16px sans-serif';
+                         ctx.fillStyle = '#8b4513';
+                         ctx.fillText('@terasyaqub_banjarmasin', 140, 880);
+                     }
+                 };
+                 img.src = src;
+             });
+         }
+         // Download / Cetak
+         downloadBtn.addEventListener('click', () => {
+             const link = document.createElement('a');
+             link.download = `terasyaqub_${Date.now()}.png`;
+             link.href = stripCanvas.toDataURL('image/png');
+             link.click();
+         });
+         startBtn.addEventListener('click', capturePhotos);
+         resetBtn.addEventListener('click', () => {
+             photos = [];
+             previewContainer.innerHTML = '';
+             stripContainer.style.display = 'none';
+             downloadBtn.style.display = 'none';
+         });
+     </script>
+ </body>
+ </html>

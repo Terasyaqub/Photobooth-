@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+ <html>
+ <head>
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <title>Terasyaqub Photobooth — Banjarmasin</title>
+   <link rel="stylesheet" href="style.css">
+   <!-- Library QR Code & GIF — diambil dari internet, GRATIS -->
+   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
+ </head>
+ <body>
+   <div class="app">
+     <!-- Logo & Brand -->
+     <div class="brand">
+       <h1>📸 TERASYAQUB</h1>
+       <p>Photobooth • Banjarmasin</p>
+     </div>
+     <!-- Kamera Live -->
+     <video id="kamera" autoplay playsinline></video>
+     <canvas id="kanvas" style="display:none;"></canvas>
+     <!-- Frame Overlay (bingkai kita sendiri) -->
+     <img id="frame" src="frame.png" style="display:none;" onload="frameSiap()">
+     <!-- Tombol Jepret -->
+     <button id="tombolJepret" onclick="mulaiFoto()">📸 JEPRET!</button>
+     <div id="hitungMundur" class="hitung"></div>
+     <!-- Hasil Foto + QR Code -->
+     <div id="hasilArea" style="display:none;">
+       <h3>✅ Selesai! Scan QR untuk Simpan</h3>
+       <img id="fotoHasil">
+       <div id="qrcode"></div>
+       <button onclick="modeGIF()">🎞️ Buat GIF</button>
+       <button onclick="modeVideo()">🎥 Rekam Video</button>
+       <button onclick="reset()">🔄 Foto Lagi</button>
+     </div>
+   </div>
+   <script src="script.js"></script>
+ </body>
+ </html>
