@@ -1,743 +1,282 @@
 <!DOCTYPE html>
  <html lang="id">
  <head>
-   <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>TERASYAQUB Photobooth — Banjarmasin</title>
-   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-   <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.min.js"></script>
-   <style>
-     * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-     
-     /* === BACKGROUND LAYAR UTAMA === */
-     body { 
-       background: #1a1a1a; 
-       background-size: cover;
-       background-position: center;
-       background-attachment: fixed;
-       min-height: 100vh; 
-       padding: 15px; 
-       display: flex; 
-       flex-direction: column; 
-       align-items: center; 
-       transition: background 0.5s ease;
-     }
-     
-     /* Header Brand */
-     .header { width: 100%; max-width: 650px; background: linear-gradient(90deg, #ff9f1c, #ffbe0b); color: #000; font-weight: 900; text-align: center; padding: 12px; border-radius: 10px 10px 0 0; font-size: 20px; }
-     .sub { font-size: 12px; font-weight: 500; margin-top: 3px; }
-     
-     /* Panel Kontrol */
-     .control { width: 100%; max-width: 650px; background: rgba(45,45,45,0.95); padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; border: 2px solid #ff9f1c; border-top: none; backdrop-filter: blur(5px); }
-     label { color: #fff; font-size: 13px; margin-right: 4px; }
-     select, button { padding: 8px 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
-     select { background: #333; color: #ffbe0b; border: 1px solid #ff9f1c; }
-     input[type="color"], input[type="file"] { padding: 2px; border-radius: 4px; cursor: pointer; background: transparent; color: #fff; font-size: 12px; }
-     input[type="text"] { padding: 6px 8px; border-radius: 4px; border: none; font-size: 13px; }
-     
-     /* Tombol Warna */
-     .btn-jepret { background: #ff9f1c; color: #000; }
-     .btn-simpan { background: #22c55e; color: #fff; }
-     .btn-ulangall { background: #ef4444; color: #fff; }
-     .btn-gif { background: #9333ea; color: #fff; }
-     .btn-video { background: #3b82f6; color: #fff; }
-     .btn-live { background: #ec4899; color: #fff; }
-     .btn-retake { background: #f97316; color: #fff; font-size: 12px; padding: 4px 8px; }
-     .btn-stiker { background: #8b5cf6; color: #fff; font-size: 12px; padding: 5px 8px; }
-     button:hover { transform: scale(1.03); transition: 0.2s; }
-     button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-     
-     /* Area Frame + Grid */
-     .frame-wrapper { width: 100%; max-width: 650px; background: #000; border: 10px solid #ff9f1c; border-top: none; border-bottom: none; position: relative; overflow: hidden; }
-     .frame-container {
-       width: 100%; aspect-ratio: 4/5; background: #111; position: relative;
-       display: grid; gap: 3px; padding: 3px;
-       grid-template-columns: 1fr; grid-template-rows: 1fr;
-     }
-     /* Grid 1–8 */
-     .grid-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-     .grid-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
-     .grid-3 { grid-template-columns: 1fr; grid-template-rows: repeat(3, 1fr); }
-     .grid-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-     .grid-5 { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); }
-     .grid-5 .cell-5 { grid-column: 1 / -1; }
-     .grid-6 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: repeat(2, 1fr); }
-     .grid-7 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: repeat(3, 1fr); }
-     .grid-7 .cell-7 { grid-column: 1 / -1; }
-     .grid-8 { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); }
-     
-     /* Sel Foto */
-     .photo-cell { position: relative; overflow: hidden; background: #222; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 2px solid transparent; }
-     .photo-cell video, .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
-     .nomor { position: absolute; top: 6px; left: 6px; background: #ff9f1c; color: #000; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 12px; z-index: 5; }
-     .retake-btn { position: absolute; top: 6px; right: 6px; z-index: 6; }
-     .belum-diambil { opacity: 0.5; }
-     
-     /* === TEMPLATE KUSTOM + BACKGROUND FRAME === */
-     .template-elem { position: absolute; pointer-events: none; z-index: 10; inset: 0; }
-     .frame-bg { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0.25; z-index: 1; }
-     .foto-atas-frame { position: absolute; top: 0; left: 0; width: 100%; height: auto; max-height: 30%; object-fit: contain; z-index: 5; pointer-events: none; }
-     .foto-bawah-frame { position: absolute; bottom: 0; left: 0; width: 100%; height: auto; max-height: 30%; object-fit: contain; z-index: 5; pointer-events: none; }
-     .foto-kiri-frame { position: absolute; top: 50%; left: 0; transform: translateY(-50%); width: auto; height: 40%; object-fit: contain; z-index: 5; pointer-events: none; }
-     .foto-kanan-frame { position: absolute; top: 50%; right: 0; transform: translateY(-50%); width: auto; height: 40%; object-fit: contain; z-index: 5; pointer-events: none; }
-     /* Sudut Bingkai */
-     .corner { width: 40px; height: 40px; border: 5px solid #ff9f1c; position: absolute; --c: #ff9f1c; z-index: 12; }
-     .tl { top: 10px; left: 10px; border-right: none; border-bottom: none; border-radius: 0 0 8px 0; border-color: var(--c); }
-     .tr { top: 10px; right: 10px; border-left: none; border-bottom: none; border-radius: 0 0 0 8px; border-color: var(--c); }
-     .bl { bottom: 10px; left: 10px; border-right: none; border-top: none; border-radius: 0 8px 0 0; border-color: var(--c); }
-     .br { bottom: 10px; right: 10px; border-left: none; border-top: none; border-radius: 8px 0 0 0; border-color: var(--c); }
-     /* Teks & Logo */
-     .text-brand { bottom: 15px; right: 15px; color: #fff; font-size: 15px; font-weight: bold; text-shadow: 0 0 4px #000; z-index: 12; }
-     .logo-top { top: 12px; left: 50%; transform: translateX(-50%); color: #ff9f1c; font-weight: 900; font-size: 20px; text-shadow: 0 0 4px #000; z-index: 12; }
-     .teks-bawah { bottom: 8px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; text-shadow: 0 0 3px #000; z-index: 12; }
-     /* Bingkai Neon & Polos */
-     .neon-border { inset: 0; box-shadow: inset 0 0 20px var(--neon-c1, #ff9f1c), inset 0 0 40px var(--neon-c2, #ff2e63); z-index: 11; }
-     .bingkai-polos { inset: 0; border: 6px solid var(--bingkai-warna, #ff9f1c); z-index: 11; }
-     /* Motif/Pattern */
-     .pattern-overlay { inset: 0; opacity: 0.08; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v2h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z' fill='%23ffbe0b' fill-opacity='0.5'/%3E%3C/g%3E%3C/svg%3E"); z-index: 3; }
-     
-     /* === STIKER & ELEMEN HIASAN === */
-     .stiker-panel { width: 100%; max-width: 650px; background: rgba(45,45,45,0.95); border: 2px solid #ff9f1c; border-top: none; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
-     .stiker-item { font-size: 28px; cursor: pointer; padding: 6px; border-radius: 6px; background: #333; transition: 0.2s; }
-     .stiker-item:hover { background: #ff9f1c; transform: scale(1.2); }
-     .stiker-terpasang { position: absolute; font-size: 40px; pointer-events: none; z-index: 15; }
-     .elemen-panel { width: 100%; max-width: 650px; background: rgba(50,50,50,0.95); border: 2px solid #ff9f1c; border-top: none; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
-     .elemen-btn { padding: 6px 10px; font-size: 12px; background: #444; color: #fff; border-radius: 4px; }
-     .elemen-btn:hover { background: #ff9f1c; color: #000; }
-     
-     /* Utilitas */
-     .hidden { display: none !important; }
-     .countdown { position: absolute; font-size: 80px; font-weight: 900; color: #fff; text-shadow: 0 0 25px #000; z-index: 20; }
-     .live-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: red; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; z-index: 25; animation: blink 1s infinite; }
-     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
-     .rekam-indicator { position: absolute; top: 10px; right: 10px; background: red; width: 16px; height: 16px; border-radius: 50%; z-index: 25; animation: blink 1s infinite; }
-     
-     /* QR & Hasil */
-     .hasil-area { width: 100%; max-width: 650px; background: rgba(45,45,45,0.95); border: 2px solid #ff9f1c; border-top: none; padding: 15px; text-align: center; color: #fff; border-radius: 0 0 10px 10px; backdrop-filter: blur(5px); }
-     .hasil-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
-     .tab-btn { padding: 6px 10px; font-size: 13px; background: #444; color: #fff; }
-     .tab-btn.active { background: #ff9f1c; color: #000; }
-     #qrcode-foto, #qrcode-gif, #qrcode-video { margin: 10px auto; padding: 10px; background: #fff; border-radius: 8px; display: inline-block; }
-     .linkFile { margin-top: 8px; font-size: 12px; word-break: break-all; color: #ffbe0b; }
-     
-     /* === PANEL KUSTOMISASI TEMPLATE — DENGAN UPLOAD FOTO === */
-     .custom-panel { width: 100%; max-width: 650px; background: rgba(56,56,56,0.95); border: 2px solid #ff9f1c; border-top: none; padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
-     .custom-group { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border-bottom: 1px solid #444; padding-bottom: 8px; }
-     .custom-group-title { width: 100%; font-size: 13px; color: #ffbe0b; font-weight: bold; margin-bottom: 4px; }
-   </style>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>TERASYAQUB Photobooth — Banjarmasin</title>
+     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+     <style>
+         * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+         body {
+             background: #1a1a1a;
+             color: #fff;
+             min-height: 100vh;
+             padding: 15px;
+             display: flex;
+             flex-direction: column;
+             align-items: center;
+         }
+         .header {
+             width: 100%; max-width: 700px;
+             background: linear-gradient(90deg, #ff9f1c, #ffbe0b);
+             color: #000; font-weight: 900; text-align: center;
+             padding: 14px; border-radius: 12px 12px 0 0;
+             font-size: 20px;
+         }
+         .sub { font-size: 12px; font-weight: 500; margin-top: 3px; }
+         .control {
+             width: 100%; max-width: 700px;
+             background: #2d2d2d;
+             padding: 12px; display: flex; flex-wrap: wrap; gap: 8px;
+             border: 2px solid #ff9f1c; border-top: none;
+         }
+         label { font-size: 13px; margin-right: 4px; }
+         select, button, input[type="file"] {
+             padding: 8px 12px; border-radius: 6px; border: none;
+             font-weight: bold; cursor: pointer; font-size: 14px;
+         }
+         select { background: #444; color: #ffbe0b; border: 1px solid #ff9f1c; }
+         input[type="file"] { background: #333; color: #fff; font-size: 12px; }
+         .btn-jepret { background: #ff9f1c; color: #000; }
+         .btn-simpan { background: #22c55e; color: #fff; }
+         .btn-upload { background: #3b82f6; color: #fff; }
+         .btn-reset { background: #ef4444; color: #fff; }
+         button:hover { transform: scale(1.05); transition: 0.2s; }
+         button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+         .frame-wrapper {
+             width: 00%; max-width: 700px; background: #000;
+             border: 10px solid #ff9f1c; border-top: none; border-bottom: none;
+             position: relative; overflow: hidden;
+         }
+         .viewfinder {
+             width: 100%; aspect-ratio: 4/5; background: #111;
+             position: relative; display: flex; align-items: center; justify-content: center;
+         }
+         video, canvas {
+             position: absolute;
+             width: 100%; height: 100%;
+             object-fit: cover; transform: scaleX(-1);
+         }
+         #overlay {
+             position: absolute;
+             width: 100%; height: 100%;
+             pointer-events: none; z-index: 5;
+         }
+         .btn-bar {
+             width: 100%; max-width: 700px;
+             background: #2d2d2d;
+             padding: 14px; border-radius: 0 0 12px 12px;
+             border: 2px solid #ff9f1c; border-top: none;
+             display: flex; gap: 10px; justify-content: center;
+         }
+         .result-area {
+             width: 100%; max-width: 700px; margin-top: 20px;
+             background: #2d2d2d; padding: 15px; border-radius: 12px;
+             border: 2px solid #ff9f1c; display: none;
+         }
+         #hasilFoto { width: 100%; border-radius: 8px; margin-bottom: 12px; }
+         #qrcode { margin-top: 10px; display: flex; justify-content: center; }
+         .hidden { display: none !important; }
+     </style>
  </head>
  <body>
-   <div class="header">📸 TERASYAQUB Photobooth <div class="sub">• Banjarmasin</div></div>
-   <!-- PANEL KONTROL UTAMA -->
-   <div class="control">
-     <div>
-       <label>Grid Foto:</label>
-       <select id="gridPilih">
+ <div class="header">
+     📸 TERASYAQUB Photobooth
+     <div class="sub">✨ Banjarmasin — Kustom Frame & QR Code ✨</div>
+ </div>
+ <div class="control">
+     <label>Grid Foto:</label>
+     <select id="gridSelect">
          <option value="1">1 Foto</option>
          <option value="2">2 Foto</option>
          <option value="3">3 Foto</option>
          <option value="4">4 Foto</option>
-         <option value="5">5 Foto</option>
-         <option value="6">6 Foto</option>
-         <option value="7">7 Foto</option>
-         <option value="8">8 Foto</option>
-       </select>
-     </div>
-     <div>
-       <label>Template:</label>
-       <select id="templatePilih">
+     </select>
+     <label>Template:</label>
+     <select id="templateSelect">
          <option value="polos">Polos</option>
-         <option value="sudut">Sudut Emas</option>
-         <option value="neon">Bingkai Neon</option>
-         <option value="motif">Motif Tekstur</option>
-         <option value="semua">Lengkap</option>
-         <option value="kustom">🎨 Kustom Saya</option>
-       </select>
+         <option value="retro">Retro Kuning</option>
+         <option value="minimalis">Minimalis Putih</option>
+         <option value="banjarmasin">Banjarmasin Khas</option>
+         <option value="kustom">Kustom Saya ⭐</option>
+     </select>
+     <button class="btn-upload" id="btnUploadFrame">📎 Upload Frame</button>
+     <input type="file" id="uploadFrame" accept="image/*" class="hidden">
+     <button id="btnStiker">⭐ Stiker</button>
+     <button id="btnElemen">🔷 Elemen</button>
+ </div>
+ <div class="frame-wrapper">
+     <div class="viewfinder">
+         <video id="kamera" autoplay playsinline muted></video>
+         <canvas id="overlay"></canvas>
      </div>
-     <button id="toggleCustom">⚙️ Template</button>
-     <button id="toggleBg">🖼️ Background</button>
-     <button id="toggleStiker">⭐ Stiker</button>
-     <button id="toggleElemen">🔷 Elemen</button>
-   </div>
-   <!-- === PANEL BACKGROUND LAYAR UTAMA === -->
-   <div class="custom-panel hidden" id="bgPanel">
-     <label>Background Layar:</label>
-     <input type="file" id="bgUpload" accept="image/*">
-     <label>Warna Solid:</label>
-     <input type="color" id="bgWarna" value="#1a1a1a">
-     <button onclick="hapusBg()" class="btn-ulangall">🗑️ Hapus</button>
-     <button onclick="terapkanBg()" class="btn-simpan">✅ Terapkan</button>
-   </div>
-   <!-- === PANEL TEMPLATE KUSTOM — LENGKAP + UPLOAD FOTO === -->
-   <div class="custom-panel hidden" id="customPanel">
-     <!-- 📸 BAGIAN UPLOAD FOTO KE FRAME -->
-     <div class="custom-group">
-       <span class="custom-group-title">📸 TAMBAHKAN FOTO KE FRAME</span>
-       <label>Foto Atas:</label><input type="file" id="fotoAtasUpload" accept="image/*">
-       <label>Foto Bawah:</label><input type="file" id="fotoBawahUpload" accept="image/*">
-       <label>Foto Kiri:</label><input type="file" id="fotoKiriUpload" accept="image/*">
-       <label>Foto Kanan:</label><input type="file" id="fotoKananUpload" accept="image/*">
-       <button onclick="hapusSemuaFotoFrame()" class="btn-ulangall">🗑️ Hapus Semua Foto</button>
-     </div>
-     
-     <!-- 🎨 BAGIAN WARNA & TEKS -->
-     <div class="custom-group">
-       <span class="custom-group-title">🎨 WARNA & TEKS</span>
-       <label>Warna Bingkai:</label><input type="color" id="warnaBingkai" value="#ff9f1c">
-       <label>Warna Neon 1:</label><input type="color" id="warnaNeon1" value="#ff9f1c">
-       <label>Warna Neon 2:</label><input type="color" id="warnaNeon2" value="#ff2e63">
-       <label>Teks Atas:</label><input type="text" id="teksAtas" value="TERASYAQUB">
-       <label>Teks Bawah:</label><input type="text" id="teksBawah" value="Photobooth • Banjarmasin">
-     </div>
-     
-     <!-- 🖼️ BACKGROUND FRAME -->
-     <div class="custom-group">
-       <span class="custom-group-title">🖼️ BACKGROUND FRAME</span>
-       <label>Upload Gambar:</label><input type="file" id="frameBgUpload" accept="image/*">
-       <button onclick="hapusBgFrame()" class="btn-ulangall">🗑️ Hapus</button>
-     </div>
-     
-     <!-- ✅ TOMBOL TERAPKAN -->
-     <button onclick="terapkanKustom()" class="btn-simpan" style="width:100%; font-size:16px; padding:10px;">✅ TERAPKAN SEMUA</button>
-   </div>
-   <!-- === PANEL STIKER === -->
-   <div class="stiker-panel hidden" id="stikerPanel">
-     <label>Pilih Stiker → Klik untuk tambah:</label>
-     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
-       <span class="stiker-item" data-s="⭐">⭐</span>
-       <span class="stiker-item" data-s="❤️">❤️</span>
-       <span class="stiker-item" data-s="✨">✨</span>
-       <span class="stiker-item" data-s="🎈">🎈</span>
-       <span class="stiker-item" data-s="🎀">🎀</span>
-       <span class="stiker-item" data-s="🌟">🌟</span>
-       <span class="stiker-item" data-s="💫">💫</span>
-       <span class="stiker-item" data-s="🌸">🌸</span>
-       <span class="stiker-item" data-s="🔥">🔥</span>
-       <span class="stiker-item" data-s="💖">💖</span>
-       <span class="stiker-item" data-s="🎊">🎊</span>
-       <span class="stiker-item" data-s="🌺">🌺</span>
-       <span class="stiker-item" data-s="💍">💍</span>
-       <span class="stiker-item" data-s="👑">👑</span>
-       <span class="stiker-item" data-s="🎂">🎂</span>
-       <span class="stiker-item" data-s="🎉">🎉</span>
-     </div>
-     <button onclick="hapusSemuaStiker()" class="btn-ulangall" style="margin-top:8px;">🗑️ Hapus Semua Stiker</button>
-   </div>
-   <!-- === PANEL ELEMEN HIASAN === -->
-   <div class="elemen-panel hidden" id="elemenPanel">
-     <label>Tambah Elemen Hiasan:</label>
-     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
-       <button class="elemen-btn" onclick="tambahElemen('bintang')">⭐ Bintang</button>
-       <button class="elemen-btn" onclick="tambahElemen('garis')">➖ Garis</button>
-       <button class="elemen-btn" onclick="tambahElemen('lingkaran')">⭕ Lingkaran</button>
-       <button class="elemen-btn" onclick="tambahElemen('kotak')">⬜ Kotak</button>
-       <button class="elemen-btn" onclick="tambahElemen('panah')">➡️ Panah</button>
-       <button class="elemen-btn" onclick="tambahElemen('tulisan')">✏️ Teks</button>
-     </div>
-   </div>
-   <!-- AREA FOTO & GRID -->
-   <div class="frame-wrapper" id="frameWrapper">
-     <!-- Background Frame Kustom -->
-     <div class="frame-bg" id="frameBgEl"></div>
-     
-     <!-- 📸 TEMPAT FOTO YANG DIUPLOAD KE FRAME -->
-     <img class="foto-atas-frame hidden" id="fotoAtasFrameEl" alt="">
-     <img class="foto-bawah-frame hidden" id="fotoBawahFrameEl" alt="">
-     <img class="foto-kiri-frame hidden" id="fotoKiriFrameEl" alt="">
-     <img class="foto-kanan-frame hidden" id="fotoKananFrameEl" alt="">
-     
-     <div class="frame-container grid-1" id="gridArea"></div>
-     <div class="countdown hidden" id="hitungMundur">3</div>
-     <div class="live-indicator hidden" id="liveIndicator">🔴 LIVE</div>
-     <div class="rekam-indicator hidden" id="rekamIndicator"></div>
-     
-     <!-- Elemen Template -->
-     <div class="template-elem hidden" id="tplPolos"><div class="bingkai-polos"></div></div>
-     <div class="template-elem hidden" id="tplSudut">
-       <div class="corner tl"></div><div class="corner tr"></div>
-       <div class="corner bl"></div><div class="corner br"></div>
-       <div class="logo-top">TERASYAQUB</div>
-       <div class="text-brand">Photobooth • Banjarmasin</div>
-     </div>
-     <div class="template-elem hidden" id="tplNeon"><div class="neon-border"></div></div>
-     <div class="template-elem hidden" id="tplMotif"><div class="pattern-overlay"></div></div>
-     <div class="template-elem hidden" id="tplKustom">
-       <div class="bingkai-polos"></div>
-       <div class="corner tl"></div><div class="corner tr"></div>
-       <div class="corner bl"></div><div class="corner br"></div>
-       <div class="logo-top" id="kustomTeksAtas">TERASYAQUB</div>
-       <div class="teks-bawah" id="kustomTeksBawah">Photobooth • Banjarmasin</div>
-       <div class="pattern-overlay"></div>
-     </div>
-     
-     <!-- Tempat Stiker & Elemen -->
-     <div id="stikerTempat"></div>
-   </div>
-   <!-- TOMBOL UTAMA -->
-   <div class="control">
+ </div>
+ <div class="btn-bar">
      <button class="btn-jepret" id="btnJepret">📸 JEPRET!</button>
-     <button class="btn-live hidden" id="btnLive">🔴 LIVE Mode</button>
-     <button class="btn-ulangall hidden" id="btnUlangSemua">🔄 ULANG SEMUA</button>
-     <button class="btn-simpan hidden" id="btnSimpan">💾 SIMPAN FOTO</button>
-     <button class="btn-gif hidden" id="btnGif">🎬 BUAT GIF</button>
-     <button class="btn-video hidden" id="btnVideo">🎥 VIDEO 5s</button>
-   </div>
-   <!-- AREA HASIL & QR CODE -->
-   <div class="hasil-area hidden" id="areaHasil">
-     <h3>✅ Hasil — Scan QR untuk Unduh 📱</h3>
-     <div class="hasil-tabs">
-       <button class="tab-btn active" data-tab="foto">📸 Foto</button>
-       <button class="tab-btn" data-tab="gif">🎬 GIF</button>
-       <button class="tab-btn" data-tab="video">🎥 Video</button>
-     </div>
-     
-     <!-- TAB FOTO -->
-     <div id="tab-foto">
-       <div id="qrcode-foto"></div>
-       <p class="linkFile" id="linkFoto"></p>
-       <button class="btn-simpan" onclick="unduhGabungan()">💾 Simpan Gabungan</button>
-     </div>
-     
-     <!-- TAB GIF -->
-     <div id="tab-gif" class="hidden">
-       <div id="qrcode-gif"></div>
-       <p class="linkFile" id="linkGif">Belum dibuat</p>
-       <button class="btn-gif" onclick="buatGIF()">🎬 Buat GIF Sekarang</button>
-     </div>
-     
-     <!-- TAB VIDEO -->
-     <div id="tab-video" class="hidden">
-       <div id="qrcode-video"></div>
-       <p class="linkFile" id="linkVideo">Belum direkam</p>
-       <button class="btn-video" onclick="rekamVideo()">🎥 Rekam Video</button>
-     </div>
-     
-     <small style="margin-top:8px; display:block;">👉 Buka kamera HP → arahkan ke QR → klik link untuk simpan</small>
-   </div>
+     <button class="btn-simpan" id="btnSimpan" disabled>💾 SIMPAN</button>
+     <button class="btn-reset" id="btnReset">🔄 ULANG</button>
+ </div>
+ <div class="result-area" id="resultArea">
+     <h3>✅ Hasil Foto</h3>
+     <img id="hasilFoto" alt="Hasil Foto">
+     <p>📲 Scan QR untuk file digital:</p>
+     <div id="qrcode"></div>
+     <a id="downloadLink" download="terasyaqub_photobooth.png" style="display:none"></a>
+ </div>
  <script>
- // === VARIABEL UTAMA ===
- const gridArea = document.getElementById('gridArea');
- const gridPilih = document.getElementById('gridPilih');
- const templatePilih = document.getElementById('templatePilih');
+ // === SEMUA FUNGSI — KAMERA, FRAME, SIMPAN, QR ===
+ const kamera = document.getElementById('kamera');
+ const overlay = document.getElementById('overlay');
+ const ctx = overlay.getContext('2d');
  const btnJepret = document.getElementById('btnJepret');
- const btnLive = document.getElementById('btnLive');
- const btnUlangSemua = document.getElementById('btnUlangSemua');
  const btnSimpan = document.getElementById('btnSimpan');
- const btnGif = document.getElementById('btnGif');
- const btnVideo = document.getElementById('btnVideo');
- const hitungMundur = document.getElementById('hitungMundur');
- const areaHasil = document.getElementById('areaHasil');
- const customPanel = document.getElementById('customPanel');
- const bgPanel = document.getElementById('bgPanel');
- const stikerPanel = document.getElementById('stikerPanel');
- const elemenPanel = document.getElementById('elemenPanel');
- const stikerTempat = document.getElementById('stikerTempat');
- let jumlahFoto = 1;
- let fotoTerambil = 0;
- let dataFoto = [];
- let streamKamera = null;
- let mediaRecorder = null;
- let rekamChunks = [];
- let linkGabungan = '';
- let linkGIF = '';
- let linkVideo = '';
- let isLiveMode = false;
- let warnaKustom = { bingkai: '#ff9f1c', neon1: '#ff9f1c', neon2: '#ff2e63', teksAtas: 'TERASYAQUB', teksBawah: 'Photobooth • Banjarmasin' };
- let stikerTerpasang = [];
- let bgLayarUrl = '';
- let bgFrameUrl = '';
- // Foto yang diupload ke frame
- let fotoFrame = { atas: '', bawah: '', kiri: '', kanan: '' };
- // === TOGGLE PANEL ===
- document.getElementById('toggleCustom').addEventListener('click', () => {
-   customPanel.classList.toggle('hidden');
-   bgPanel.classList.add('hidden'); stikerPanel.classList.add('hidden'); elemenPanel.classList.add('hidden');
-   if(!customPanel.classList.contains('hidden')) {
-     templatePilih.value = 'kustom';
-     templatePilih.dispatchEvent(new Event('change'));
-   }
- });
- document.getElementById('toggleBg').addEventListener('click', () => {
-   bgPanel.classList.toggle('hidden');
-   customPanel.classList.add('hidden'); stikerPanel.classList.add('hidden'); elemenPanel.classList.add('hidden');
- });
- document.getElementById('toggleStiker').addEventListener('click', () => {
-   stikerPanel.classList.toggle('hidden');
-   customPanel.classList.add('hidden'); bgPanel.classList.add('hidden'); elemenPanel.classList.add('hidden');
- });
- document.getElementById('toggleElemen').addEventListener('click', () => {
-   elemenPanel.classList.toggle('hidden');
-   customPanel.classList.add('hidden'); bgPanel.classList.add('hidden'); stikerPanel.classList.add('hidden');
- });
- // === BACKGROUND LAYAR UTAMA ===
- function terapkanBg() {
-   const file = document.getElementById('bgUpload').files[0];
-   const warna = document.getElementById('bgWarna').value;
-   if(file) {
+ const btnReset = document.getElementById('btnReset');
+ const templateSelect = document.getElementById('templateSelect');
+ const uploadFrame = document.getElementById('uploadFrame');
+ const btnUploadFrame = document.getElementById('btnUploadFrame');
+ const resultArea = document.getElementById('resultArea');
+ const hasilFoto = document.getElementById('hasilFoto');
+ const qrcodeDiv = document.getElementById('qrcode');
+ const downloadLink = document.getElementById('downloadLink');
+ const gridSelect = document.getElementById('gridSelect');
+ let stream = null;
+ let fotoTerambil = [];
+ let frameKustom = null;
+ let fotoTerakhir = null;
+ let canvasFinal = document.createElement('canvas');
+ let ctxFinal = canvasFinal.getContext('2d');
+ // === 1. NYALAKAN KAMERA OTOMATIS ===
+ async function mulaiKamera() {
+     try {
+         stream = await navigator.mediaDevices.getUserMedia({
+             video: { 
+                 facingMode: 'environment',
+                 width: { ideal: 1200 },
+                 height: { ideal: 1500 }
+             },
+             audio: false
+         });
+         kamera.srcObject = stream;
+         await kamera.play();
+         console.log('✅ Kamera nyala!');
+     } catch (err) {
+         alert('❌ Gagal akses kamera:\n' + err.message + '\n\nPastikan tekan IZINKAN kamera!');
+         console.error(err);
+     }
+ }
+ // === 2. GAMBAR FRAME ===
+ function gambarFrame(jenis) {
+     overlay.width = kamera.videoWidth || 600;
+     overlay.height = kamera.videoHeight || 750;
+     ctx.clearRect(0, 0, overlay.width, overlay.height);
+     const w = overlay.width, h = overlay.height;
+     if (jenis === 'polos') {
+         ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 8;
+         ctx.strokeRect(10, 10, w-20, h-20);
+     } 
+     else if (jenis === 'retro') {
+         ctx.fillStyle = 'rgba(255,190,11,0.15)';
+         ctx.fillRect(0,0,w,h);
+         ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 12;
+         ctx.strokeRect(15,15,w-30,h-30);
+         ctx.fillStyle = '#ff9f1c'; ctx.font = 'bold 32px sans-serif';
+         ctx.fillText('TERASYAQUB', 30, h - 30);
+         ctx.font = '18px sans-serif';
+         ctx.fillText('Banjarmasin', 30, h - 5);
+     } 
+     else if (jenis === 'minimalis') {
+         ctx.strokeStyle = '#fff'; ctx.lineWidth = 5;
+         ctx.strokeRect(20,20,w-40,h-40);
+         ctx.beginPath();
+         ctx.moveTo(20, 60); ctx.lineTo(w-20, 60);
+         ctx.moveTo(20, h-60); ctx.lineTo(w-20, h-60);
+         ctx.stroke();
+     } 
+     else if (jenis === 'banjarmasin') {
+         ctx.fillStyle = 'rgba(255,159,28,0.1)';
+         ctx.fillRect(0,0,w,h);
+         ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 10;
+         ctx.strokeRect(20,20,w-40,h-40);
+         ctx.fillStyle = '#ff9f1c'; ctx.font = 'bold 36px sans-serif';
+         ctx.textAlign = 'center';
+         ctx.fillText('TERASYAQUB', w/2, 55);
+         ctx.font = '22px sans-serif';
+         ctx.fillText('📸 BANJARMASIN 📍', w/2, h - 30);
+     } 
+     else if (jenis === 'kustom' && frameKustom) {
+         ctx.drawImage(frameKustom, 0, 0, w, h);
+     }
+ }
+ // === 3. UPLOAD FRAME SENDIRI ===
+ btnUploadFrame.addEventListener('click', () => uploadFrame.click());
+ uploadFrame.addEventListener('change', (e) => {
+     const file = e.target.files[0];
+     if (!file) return;
      const reader = new FileReader();
-     reader.onload = e => {
-       bgLayarUrl = e.target.result;
-       document.body.style.background = `url(${bgLayarUrl}) no-repeat center center fixed`;
-       document.body.style.backgroundSize = 'cover';
+     reader.onload = function(ev) {
+         const img = new Image();
+         img.onload = function() {
+             frameKustom = img;
+             templateSelect.value = 'kustom';
+             gambarFrame('kustom');
+             alert('✅ Frame kustom berhasil dimuat!');
+         };
+         img.src = ev.target.result;
      };
      reader.readAsDataURL(file);
-   } else {
-     document.body.style.background = warna;
-   }
-   alert('✅ Background diterapkan!');
- }
- function hapusBg() {
-   document.body.style.background = '#1a1a1a';
-   document.body.style.backgroundSize = 'cover';
-   document.getElementById('bgUpload').value = '';
- }
- // === 📸 UPLOAD FOTO KE FRAME — BAGIAN BARU! ===
- // Foto Atas
- document.getElementById('fotoAtasUpload').addEventListener('change', e => {
-   const file = e.target.files[0];
-   if(file) {
-     const reader = new FileReader();
-     reader.onload = ev => {
-       fotoFrame.atas = ev.target.result;
-       const el = document.getElementById('fotoAtasFrameEl');
-       el.src = fotoFrame.atas;
-       el.classList.remove('hidden');
-     };
-     reader.readAsDataURL(file);
-   }
  });
- // Foto Bawah
- document.getElementById('fotoBawahUpload').addEventListener('change', e => {
-   const file = e.target.files[0];
-   if(file) {
-     const reader = new FileReader();
-     reader.onload = ev => {
-       fotoFrame.bawah = ev.target.result;
-       const el = document.getElementById('fotoBawahFrameEl');
-       el.src = fotoFrame.bawah;
-       el.classList.remove('hidden');
-     };
-     reader.readAsDataURL(file);
-   }
- });
- // Foto Kiri
- document.getElementById('fotoKiriUpload').addEventListener('change', e => {
-   const file = e.target.files[0];
-   if(file) {
-     const reader = new FileReader();
-     reader.onload = ev => {
-       fotoFrame.kiri = ev.target.result;
-       const el = document.getElementById('fotoKiriFrameEl');
-       el.src = fotoFrame.kiri;
-       el.classList.remove('hidden');
-     };
-     reader.readAsDataURL(file);
-   }
- });
- // Foto Kanan
- document.getElementById('fotoKananUpload').addEventListener('change', e => {
-   const file = e.target.files[0];
-   if(file) {
-     const reader = new FileReader();
-     reader.onload = ev => {
-       fotoFrame.kanan = ev.target.result;
-       const el = document.getElementById('fotoKananFrameEl');
-       el.src = fotoFrame.kanan;
-       el.classList.remove('hidden');
-     };
-     reader.readAsDataURL(file);
-   }
- });
- // Hapus Semua Foto di Frame
- function hapusSemuaFotoFrame() {
-   fotoFrame = { atas: '', bawah: '', kiri: '', kanan: '' };
-   document.getElementById('fotoAtasFrameEl').classList.add('hidden');
-   document.getElementById('fotoBawahFrameEl').classList.add('hidden');
-   document.getElementById('fotoKiriFrameEl').classList.add('hidden');
-   document.getElementById('fotoKananFrameEl').classList.add('hidden');
-   document.getElementById('fotoAtasUpload').value = '';
-   document.getElementById('fotoBawahUpload').value = '';
-   document.getElementById('fotoKiriUpload').value = '';
-   document.getElementById('fotoKananUpload').value = '';
-   alert('🗑️ Semua foto di frame dihapus!');
- }
- // === BACKGROUND FRAME KUSTOM ===
- document.getElementById('frameBgUpload').addEventListener('change', e => {
-   const file = e.target.files[0];
-   if(file) {
-     const reader = new FileReader();
-     reader.onload = ev => {
-       bgFrameUrl = ev.target.result;
-       document.getElementById('frameBgEl').style.backgroundImage = `url(${bgFrameUrl})`;
-     };
-     reader.readAsDataURL(file);
-   }
- });
- function hapusBgFrame() {
-   bgFrameUrl = '';
-   document.getElementById('frameBgEl').style.backgroundImage = '';
-   document.getElementById('frameBgUpload').value = '';
- }
- // === FUNGSI STIKER ===
- document.querySelectorAll('.stiker-item').forEach(item => {
-   item.addEventListener('click', () => {
-     const stiker = document.createElement('span');
-     stiker.className = 'stiker-terpasang';
-     stiker.textContent = item.dataset.s;
-     stiker.style.top = Math.random()*70+10 + '%';
-     stiker.style.left = Math.random()*70+10 + '%';
-     stikerTempat.appendChild(stiker);
-     stikerTerpasang.push(stiker);
-   });
- });
- function hapusSemuaStiker() {
-   stikerTempat.innerHTML = '';
-   stikerTerpasang = [];
- }
- // === FUNGSI ELEMEN HIASAN ===
- function tambahElemen(jenis) {
-   const el = document.createElement('div');
-   el.className = 'stiker-terpasang';
-   el.style.top = Math.random()*60+15 + '%';
-   el.style.left = Math.random()*60+15 + '%';
-   el.style.zIndex = '15';
-   el.style.pointerEvents = 'none';
-   
-   switch(jenis) {
-     case 'bintang': el.textContent = '⭐'; el.style.fontSize = '45px'; break;
-     case 'garis': el.style.width = '80px'; el.style.height = '4px'; el.style.background = '#ff9f1c'; el.style.borderRadius = '2px'; break;
-     case 'lingkaran': el.style.width = '50px'; el.style.height = '50px'; el.style.borderRadius = '50%'; el.style.border = '4px solid #ff2e63'; el.style.background = 'transparent'; break;
-     case 'kotak': el.style.width = '45px'; el.style.height = '45px'; el.style.borderRadius = '6px'; el.style.background = '#ff9f1c'; el.style.opacity = '0.7'; break;
-     case 'panah': el.textContent = '➡️'; el.style.fontSize = '45px'; break;
-     case 'tulisan': 
-       const teks = prompt('Masukkan teks:');
-       if(!teks) return;
-       el.textContent = teks;
-       el.style.fontSize = '20px';
-       el.style.color = '#fff';
-       el.style.textShadow = '0 0 4px #000';
-       el.style.fontWeight = 'bold';
-       break;
-   }
-   stikerTempat.appendChild(el);
- }
- // === BUKA KAMERA OTOMATIS ===
- async function bukaKamera() {
-   try {
-     streamKamera = await navigator.mediaDevices.getUserMedia({ 
-       video: { facingMode: 'environment', width: 1280, height: 960 },
-       audio: true
+ // === 4. TOMBOL JEPRET ===
+ btnJepret.addEventListener('click', () => {
+     const canvas = document.createElement('canvas');
+     canvas.width = kamera.videoWidth;
+     canvas.height = kamera.videoHeight;
+     const c = canvas.getContext('2d');
+     // Salin gambar kamera
+     c.drawImage(kamera, 0, 0, canvas.width, canvas.height);
+     // Timpa dengan frame
+     gambarFrame(templateSelect.value);
+     c.drawImage(overlay, 0, 0);
+     fotoTerakhir = canvas;
+     hasilFoto.src = canvas.toDataURL('image/png');
+     resultArea.style.display = 'block';
+     btnSimpan.disabled = false;
+     // Buat QR Code dari link download
+     QRCode.toCanvas(document.createElement('canvas'), canvas.toDataURL(), { width: 180 }, function(err, qrCanvas) {
+         if (err) return console.error(err);
+         qrcodeDiv.innerHTML = '';
+         qrcodeDiv.appendChild(qrCanvas);
      });
-     buatGrid(1);
-   } catch(err) { alert('❌ Gagal akses kamera: ' + err.message + '\nIzinkan akses kamera!'); }
- }
- // === BUAT SEL FOTO DENGAN TOMBOL RETAKE PER FOTO ===
- function buatGrid(jumlah) {
-   gridArea.innerHTML = '';
-   gridArea.className = `frame-container grid-${jumlah}`;
-   dataFoto = new Array(jumlah).fill(null);
-   fotoTerambil = 0;
-   
-   for(let i = 1; i <= jumlah; i++) {
-     const sel = document.createElement('div');
-     sel.className = `photo-cell cell-${i} belum-diambil`;
-     sel.innerHTML = `
-       <div class="nomor">${i}</div>
-       <button class="btn-retake retake-btn hidden" data-id="${i}">🔄 Ulang</button>
-       <video id="vid-${i}" autoplay playsinline ${i>1?'class="hidden"':''} muted></video>
-       <img id="img-${i}" class="hidden" alt="Foto ${i}">
-     `;
-     gridArea.appendChild(sel);
-   }
-   
-   if(streamKamera) {
-     const vid1 = document.getElementById(`vid-1`);
-     vid1.srcObject = streamKamera;
-     vid1.classList.remove('hidden');
-   }
-   
-   sembunyikanHasil();
-   pasangEventRetake();
- }
- // === PASANG EVENT RETAKE ===
- function pasangEventRetake() {
-   document.querySelectorAll('.retake-btn').forEach(btn => {
-     btn.addEventListener('click', (e) => {
-       e.stopPropagation();
-       const id = parseInt(btn.dataset.id);
-       retakeFoto(id);
-     });
-   });
- }
- // === RETAKE FOTO TERTENTU ===
- function retakeFoto(nomor) {
-   dataFoto[nomor - 1] = null;
-   document.getElementById(`img-${nomor}`).classList.add('hidden');
-   document.getElementById(`vid-${nomor}`).srcObject = streamKamera;
-   document.getElementById(`vid-${nomor}`).classList.remove('hidden');
-   document.querySelector(`.cell-${nomor}`).classList.remove('belum-diambil');
-   document.querySelector(`.cell-${nomor} .retake-btn`).classList.add('hidden');
-   
-   fotoTerambil = dataFoto.filter(f => f !== null).length;
-   
-   btnJepret.disabled = false;
-   btnJepret.classList.remove('hidden');
-   btnUlangSemua.classList.add('hidden');
-   btnSimpan.classList.add('hidden');
-   btnGif.classList.add('hidden');
-   btnVideo.classList.add('hidden');
-   areaHasil.classList.add('hidden');
-   btnJepret.dataset.next = nomor;
-   alert(`📸 Siap foto ulang nomor ${nomor}!`);
- }
- // === GANTI GRID ===
- gridPilih.addEventListener('change', () => {
-   jumlahFoto = parseInt(gridPilih.value);
-   buatGrid(jumlahFoto);
-   resetSemua();
+     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
  });
- // === GANTI TEMPLATE ===
- templatePilih.addEventListener('change', () => {
-   ['tplPolos','tplSudut','tplNeon','tplMotif','tplKustom'].forEach(id=>document.getElementById(id).classList.add('hidden'));
-   const val = templatePilih.value;
-   customPanel.classList.add('hidden');
-   
-   if(val==='polos') document.getElementById('tplPolos').classList.remove('hidden');
-   if(val==='sudut') document.getElementById('tplSudut').classList.remove('hidden');
-   if(val==='neon') document.getElementById('tplNeon').classList.remove('hidden');
-   if(val==='motif') document.getElementById('tplMotif').classList.remove('hidden');
-   if(val==='semua') {
-     document.getElementById('tplSudut').classList.remove('hidden');
-     document.getElementById('tplNeon').classList.remove('hidden');
-     document.getElementById('tplMotif').classList.remove('hidden');
-   }
-   if(val==='kustom') {
-     customPanel.classList.remove('hidden');
-     document.getElementById('tplKustom').classList.remove('hidden');
-     terapkanKustom();
-   }
+ // === 5. SIMPAN FOTO ===
+ btnSimpan.addEventListener('click', () => {
+     if (!fotoTerakhir) return;
+     const link = document.createElement('a');
+     link.download = `terasyaqub_${Date.now()}.png`;
+     link.href = fotoTerakhir.toDataURL('image/png');
+     link.click();
+     alert('✅ Foto tersimpan! 📂');
  });
- // === TERAPKAN KUSTOM TEMPLATE ===
- function terapkanKustom() {
-   warnaKustom.bingkai = document.getElementById('warnaBingkai').value;
-   warnaKustom.neon1 = document.getElementById('warnaNeon1').value;
-   warnaKustom.neon2 = document.getElementById('warnaNeon2').value;
-   warnaKustom.teksAtas = document.getElementById('teksAtas').value;
-   warnaKustom.teksBawah = document.getElementById('teksBawah').value;
-   
-   const tpl = document.getElementById('tplKustom');
-   tpl.querySelector('.bingkai-polos')?.style.setProperty('--bingkai-warna', warnaKustom.bingkai);
-   tpl.querySelectorAll('.corner').forEach(c=>c.style.setProperty('--c', warnaKustom.bingkai));
-   tpl.querySelector('.neon-border')?.style.setProperty('--neon-c1', warnaKustom.neon1);
-   tpl.querySelector('.neon-border')?.style.setProperty('--neon-c2', warnaKustom.neon2);
-   document.getElementById('kustomTeksAtas').textContent = warnaKustom.teksAtas;
-   document.getElementById('kustomTeksBawah').textContent = warnaKustom.teksBawah;
-   
-   document.querySelectorAll('.photo-cell').forEach(c=>c.style.borderColor = warnaKustom.bingkai);
-   alert('✅ Template kustom diterapkan! Foto yang sudah diupload di atas tetap ada.');
- }
- // === HITUNG MUNDUR + JEPRET ===
- async function jepretDenganHitungan() {
-   let targetId = parseInt(btnJepret.dataset.next) || 1;
-   if(dataFoto[targetId - 1] !== null) {
-     targetId = dataFoto.findIndex(f => f === null) + 1;
-     if(targetId === 0) targetId = 1;
-   }
-   
-   for(let h = 3; h >= 1; h--) {
-     hitungMundur.textContent = h;
-     hitungMundur.classList.remove('hidden');
-     await new Promise(r => setTimeout(r, 800));
-   }
-   hitungMundur.classList.add('hidden');
-   
-   const vid = document.getElementById(`vid-${targetId}`);
-   const kanvas = document.createElement('canvas');
-   kanvas.width = vid.videoWidth; kanvas.height = vid.videoHeight;
-   kanvas.getContext('2d').drawImage(vid, 0, 0);
-   const dataUrl = kanvas.toDataURL('image/png');
-   const blob = await (await fetch(dataUrl)).blob();
-   
-   dataFoto[targetId - 1] = { url: dataUrl, blob };
-   fotoTerambil = dataFoto.filter(f => f !== null).length;
-   
-   document.getElementById(`img-${targetId}`).src = dataUrl;
-   document.getElementById(`img-${targetId}`).classList.remove('hidden');
-   document.getElementById(`vid-${targetId}`).classList.add('hidden');
-   document.querySelector(`.cell-${targetId}`).classList.remove('belum-diambil');
-   document.querySelector(`.cell-${targetId} .retake-btn`).classList.remove('hidden');
-   
-   const berikutnya = dataFoto.findIndex((f, i) => f === null && i >= targetId);
-   if(berikutnya !== -1) {
-     const nextId = berikutnya + 1;
-     document.getElementById(`vid-${nextId}`).srcObject = streamKamera;
-     document.getElementById(`vid-${nextId}`).classList.remove('hidden');
-     btnJepret.dataset.next = nextId;
-   }
-   
-   if(fotoTerambil === jumlahFoto) {
-     btnJepret.classList.add('hidden');
-     btnLive.classList.remove('hidden');
-     btnUlangSemua.classList.remove('hidden');
-     btnSimpan.classList.remove('hidden');
-     btnGif.classList.add('hidden');
-     btnVideo.classList.add('hidden');
-     buatGabungan();
-     areaHasil.classList.add('hidden');
-     areaHasil.classList.remove('hidden');
-     aktifkanTab();
-   }
- }
- // === LIVE MODE — Video Live / Tayangan Langsung ===
- btnLive.addEventListener('click', () => {
-   isLiveMode = !isLiveMode;
-   const liveIndicator = document.getElementById('liveIndicator');
-   
-   if(isLiveMode) {
-     btnLive.textContent = '⏹️ STOP Live';
-     btnJepret.disabled = true;
-     btnJepret.classList.add('hidden');
-     liveIndicator.classList.remove('hidden');
-     alert('🔴 Mode LIVE aktif! Kamera berjalan terus.');
-   } else {
-     btnLive.textContent = '🔴 LIVE Mode';
-     btnJepret.disabled = false;
-     btnJepret.classList.remove('hidden');
-     liveIndicator.classList.add('hidden');
-     alert('⏹️ Mode LIVE dimatikan.');
-   }
+ // === 6. ULANG / RESET ===
+ btnReset.addEventListener('click', () => {
+     fotoTerakhir = null;
+     fotoTerambil = [];
+     resultArea.style.display = 'none';
+     btnSimpan.disabled = true;
+     qrcodeDiv.innerHTML = '';
+     templateSelect.value = 'polos';
+     gambarFrame('polos');
+     window.scrollTo({ top: 0, behavior: 'smooth' });
  });
- // === BUAT GABUNGAN FOTO — TERMASUK FOTO FRAME ===
- async function buatGabungan() {
-   const kanvas = document.createElement('canvas');
-   const ctx = kanvas.getContext('2d');
-   kanvas.width = 1200; kanvas.height = 1500;
-   
-   ctx.fillStyle = '#000';
-   ctx.fillRect(0,0,kanvas.width,kanvas.height);
-   
-   // Gambar background frame
-   if(bgFrameUrl) {
-     const bgImg = new Image();
-     bgImg.src = bgFrameUrl;
-     await new Promise(r => bgImg.onload = r);
-     ctx.globalAlpha = 0.25;
-     ctx.drawImage(bgImg, 0, 0, kanvas.width, kanvas.height);
-     ctx.globalAlpha = 1;
-   }
-   
-   // Gambar foto-foto yang diambil
-   const cols = jumlahFoto <= 2 ? 2 : (jumlahFoto <= 4 ? 2 : 3);
-   const rows = Math.ceil(jumlahFoto / cols);
-   const w = kanvas.width / cols;
-   const h = kanvas.height / rows;
-   const gap = 6;
-   
-   for(let i = 0; i < jumlahFoto; i++) {
-     if(!dataFoto[i]) continue;
-     const img = new Image();
-     img.src = dataFoto[i].url;
-     await new Promise(r => img.onload = r);
-     const c = i % cols;
-     const r = Math.floor(i / cols);
-     ctx.drawImage(img, c*w + gap/2, r*h + gap/2, w-gap, h-gap
+ // === 7. GANTI TEMPLATE OTOMATIS ===
+ templateSelect.addEventListener('change', () => {
+     gambarFrame(templateSelect.value);
+ });
+ // === MULAI SEMUA ===
+ mulaiKamera().then(() => {
+     gambarFrame('polos');
+ });
+ </script>
+ </body>
+ </html>
