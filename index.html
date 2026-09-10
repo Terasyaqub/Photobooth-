@@ -1,282 +1,370 @@
 <!DOCTYPE html>
- <html lang="id">
- <head>
-     <meta charset="UTF-8">
-     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <title>TERASYAQUB Photobooth — Banjarmasin</title>
-     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-     <style>
-         * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-         body {
-             background: #1a1a1a;
-             color: #fff;
-             min-height: 100vh;
-             padding: 15px;
-             display: flex;
-             flex-direction: column;
-             align-items: center;
-         }
-         .header {
-             width: 100%; max-width: 700px;
-             background: linear-gradient(90deg, #ff9f1c, #ffbe0b);
-             color: #000; font-weight: 900; text-align: center;
-             padding: 14px; border-radius: 12px 12px 0 0;
-             font-size: 20px;
-         }
-         .sub { font-size: 12px; font-weight: 500; margin-top: 3px; }
-         .control {
-             width: 100%; max-width: 700px;
-             background: #2d2d2d;
-             padding: 12px; display: flex; flex-wrap: wrap; gap: 8px;
-             border: 2px solid #ff9f1c; border-top: none;
-         }
-         label { font-size: 13px; margin-right: 4px; }
-         select, button, input[type="file"] {
-             padding: 8px 12px; border-radius: 6px; border: none;
-             font-weight: bold; cursor: pointer; font-size: 14px;
-         }
-         select { background: #444; color: #ffbe0b; border: 1px solid #ff9f1c; }
-         input[type="file"] { background: #333; color: #fff; font-size: 12px; }
-         .btn-jepret { background: #ff9f1c; color: #000; }
-         .btn-simpan { background: #22c55e; color: #fff; }
-         .btn-upload { background: #3b82f6; color: #fff; }
-         .btn-reset { background: #ef4444; color: #fff; }
-         button:hover { transform: scale(1.05); transition: 0.2s; }
-         button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-         .frame-wrapper {
-             width: 00%; max-width: 700px; background: #000;
-             border: 10px solid #ff9f1c; border-top: none; border-bottom: none;
-             position: relative; overflow: hidden;
-         }
-         .viewfinder {
-             width: 100%; aspect-ratio: 4/5; background: #111;
-             position: relative; display: flex; align-items: center; justify-content: center;
-         }
-         video, canvas {
-             position: absolute;
-             width: 100%; height: 100%;
-             object-fit: cover; transform: scaleX(-1);
-         }
-         #overlay {
-             position: absolute;
-             width: 100%; height: 100%;
-             pointer-events: none; z-index: 5;
-         }
-         .btn-bar {
-             width: 100%; max-width: 700px;
-             background: #2d2d2d;
-             padding: 14px; border-radius: 0 0 12px 12px;
-             border: 2px solid #ff9f1c; border-top: none;
-             display: flex; gap: 10px; justify-content: center;
-         }
-         .result-area {
-             width: 100%; max-width: 700px; margin-top: 20px;
-             background: #2d2d2d; padding: 15px; border-radius: 12px;
-             border: 2px solid #ff9f1c; display: none;
-         }
-         #hasilFoto { width: 100%; border-radius: 8px; margin-bottom: 12px; }
-         #qrcode { margin-top: 10px; display: flex; justify-content: center; }
-         .hidden { display: none !important; }
-     </style>
- </head>
- <body>
- <div class="header">
-     📸 TERASYAQUB Photobooth
-     <div class="sub">✨ Banjarmasin — Kustom Frame & QR Code ✨</div>
- </div>
- <div class="control">
-     <label>Grid Foto:</label>
-     <select id="gridSelect">
-         <option value="1">1 Foto</option>
-         <option value="2">2 Foto</option>
-         <option value="3">3 Foto</option>
-         <option value="4">4 Foto</option>
-     </select>
-     <label>Template:</label>
-     <select id="templateSelect">
-         <option value="polos">Polos</option>
-         <option value="retro">Retro Kuning</option>
-         <option value="minimalis">Minimalis Putih</option>
-         <option value="banjarmasin">Banjarmasin Khas</option>
-         <option value="kustom">Kustom Saya ⭐</option>
-     </select>
-     <button class="btn-upload" id="btnUploadFrame">📎 Upload Frame</button>
-     <input type="file" id="uploadFrame" accept="image/*" class="hidden">
-     <button id="btnStiker">⭐ Stiker</button>
-     <button id="btnElemen">🔷 Elemen</button>
- </div>
- <div class="frame-wrapper">
-     <div class="viewfinder">
-         <video id="kamera" autoplay playsinline muted></video>
-         <canvas id="overlay"></canvas>
-     </div>
- </div>
- <div class="btn-bar">
-     <button class="btn-jepret" id="btnJepret">📸 JEPRET!</button>
-     <button class="btn-simpan" id="btnSimpan" disabled>💾 SIMPAN</button>
-     <button class="btn-reset" id="btnReset">🔄 ULANG</button>
- </div>
- <div class="result-area" id="resultArea">
-     <h3>✅ Hasil Foto</h3>
-     <img id="hasilFoto" alt="Hasil Foto">
-     <p>📲 Scan QR untuk file digital:</p>
-     <div id="qrcode"></div>
-     <a id="downloadLink" download="terasyaqub_photobooth.png" style="display:none"></a>
- </div>
- <script>
- // === SEMUA FUNGSI — KAMERA, FRAME, SIMPAN, QR ===
- const kamera = document.getElementById('kamera');
- const overlay = document.getElementById('overlay');
- const ctx = overlay.getContext('2d');
- const btnJepret = document.getElementById('btnJepret');
- const btnSimpan = document.getElementById('btnSimpan');
- const btnReset = document.getElementById('btnReset');
- const templateSelect = document.getElementById('templateSelect');
- const uploadFrame = document.getElementById('uploadFrame');
- const btnUploadFrame = document.getElementById('btnUploadFrame');
- const resultArea = document.getElementById('resultArea');
- const hasilFoto = document.getElementById('hasilFoto');
- const qrcodeDiv = document.getElementById('qrcode');
- const downloadLink = document.getElementById('downloadLink');
- const gridSelect = document.getElementById('gridSelect');
- let stream = null;
- let fotoTerambil = [];
- let frameKustom = null;
- let fotoTerakhir = null;
- let canvasFinal = document.createElement('canvas');
- let ctxFinal = canvasFinal.getContext('2d');
- // === 1. NYALAKAN KAMERA OTOMATIS ===
- async function mulaiKamera() {
-     try {
-         stream = await navigator.mediaDevices.getUserMedia({
-             video: { 
-                 facingMode: 'environment',
-                 width: { ideal: 1200 },
-                 height: { ideal: 1500 }
-             },
-             audio: false
-         });
-         kamera.srcObject = stream;
-         await kamera.play();
-         console.log('✅ Kamera nyala!');
-     } catch (err) {
-         alert('❌ Gagal akses kamera:\n' + err.message + '\n\nPastikan tekan IZINKAN kamera!');
-         console.error(err);
-     }
- }
- // === 2. GAMBAR FRAME ===
- function gambarFrame(jenis) {
-     overlay.width = kamera.videoWidth || 600;
-     overlay.height = kamera.videoHeight || 750;
-     ctx.clearRect(0, 0, overlay.width, overlay.height);
-     const w = overlay.width, h = overlay.height;
-     if (jenis === 'polos') {
-         ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 8;
-         ctx.strokeRect(10, 10, w-20, h-20);
-     } 
-     else if (jenis === 'retro') {
-         ctx.fillStyle = 'rgba(255,190,11,0.15)';
-         ctx.fillRect(0,0,w,h);
-         ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 12;
-         ctx.strokeRect(15,15,w-30,h-30);
-         ctx.fillStyle = '#ff9f1c'; ctx.font = 'bold 32px sans-serif';
-         ctx.fillText('TERASYAQUB', 30, h - 30);
-         ctx.font = '18px sans-serif';
-         ctx.fillText('Banjarmasin', 30, h - 5);
-     } 
-     else if (jenis === 'minimalis') {
-         ctx.strokeStyle = '#fff'; ctx.lineWidth = 5;
-         ctx.strokeRect(20,20,w-40,h-40);
-         ctx.beginPath();
-         ctx.moveTo(20, 60); ctx.lineTo(w-20, 60);
-         ctx.moveTo(20, h-60); ctx.lineTo(w-20, h-60);
-         ctx.stroke();
-     } 
-     else if (jenis === 'banjarmasin') {
-         ctx.fillStyle = 'rgba(255,159,28,0.1)';
-         ctx.fillRect(0,0,w,h);
-         ctx.strokeStyle = '#ff9f1c'; ctx.lineWidth = 10;
-         ctx.strokeRect(20,20,w-40,h-40);
-         ctx.fillStyle = '#ff9f1c'; ctx.font = 'bold 36px sans-serif';
-         ctx.textAlign = 'center';
-         ctx.fillText('TERASYAQUB', w/2, 55);
-         ctx.font = '22px sans-serif';
-         ctx.fillText('📸 BANJARMASIN 📍', w/2, h - 30);
-     } 
-     else if (jenis === 'kustom' && frameKustom) {
-         ctx.drawImage(frameKustom, 0, 0, w, h);
-     }
- }
- // === 3. UPLOAD FRAME SENDIRI ===
- btnUploadFrame.addEventListener('click', () => uploadFrame.click());
- uploadFrame.addEventListener('change', (e) => {
-     const file = e.target.files[0];
-     if (!file) return;
-     const reader = new FileReader();
-     reader.onload = function(ev) {
-         const img = new Image();
-         img.onload = function() {
-             frameKustom = img;
-             templateSelect.value = 'kustom';
-             gambarFrame('kustom');
-             alert('✅ Frame kustom berhasil dimuat!');
-         };
-         img.src = ev.target.result;
-     };
-     reader.readAsDataURL(file);
- });
- // === 4. TOMBOL JEPRET ===
- btnJepret.addEventListener('click', () => {
-     const canvas = document.createElement('canvas');
-     canvas.width = kamera.videoWidth;
-     canvas.height = kamera.videoHeight;
-     const c = canvas.getContext('2d');
-     // Salin gambar kamera
-     c.drawImage(kamera, 0, 0, canvas.width, canvas.height);
-     // Timpa dengan frame
-     gambarFrame(templateSelect.value);
-     c.drawImage(overlay, 0, 0);
-     fotoTerakhir = canvas;
-     hasilFoto.src = canvas.toDataURL('image/png');
-     resultArea.style.display = 'block';
-     btnSimpan.disabled = false;
-     // Buat QR Code dari link download
-     QRCode.toCanvas(document.createElement('canvas'), canvas.toDataURL(), { width: 180 }, function(err, qrCanvas) {
-         if (err) return console.error(err);
-         qrcodeDiv.innerHTML = '';
-         qrcodeDiv.appendChild(qrCanvas);
-     });
-     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
- });
- // === 5. SIMPAN FOTO ===
- btnSimpan.addEventListener('click', () => {
-     if (!fotoTerakhir) return;
-     const link = document.createElement('a');
-     link.download = `terasyaqub_${Date.now()}.png`;
-     link.href = fotoTerakhir.toDataURL('image/png');
-     link.click();
-     alert('✅ Foto tersimpan! 📂');
- });
- // === 6. ULANG / RESET ===
- btnReset.addEventListener('click', () => {
-     fotoTerakhir = null;
-     fotoTerambil = [];
-     resultArea.style.display = 'none';
-     btnSimpan.disabled = true;
-     qrcodeDiv.innerHTML = '';
-     templateSelect.value = 'polos';
-     gambarFrame('polos');
-     window.scrollTo({ top: 0, behavior: 'smooth' });
- });
- // === 7. GANTI TEMPLATE OTOMATIS ===
- templateSelect.addEventListener('change', () => {
-     gambarFrame(templateSelect.value);
- });
- // === MULAI SEMUA ===
- mulaiKamera().then(() => {
-     gambarFrame('polos');
- });
- </script>
- </body>
- </html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>TERASYAQUB Photobooth — Banjarmasin</title>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- QR Code -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+
+  <!-- GIF Encoder -->
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+
+  <!-- MP4/WebM video recorder -->
+  <script src="https://cdn.jsdelivr.net/npm/webm-writer@1.0.0/dist/webm-writer.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="brand">
+    <div class="brand-logo">📸</div>
+    <div>
+      <h1>TERASYAQUB</h1>
+      <p>Banjarmasin • Photobooth</p>
+    </div>
+  </header>
+
+
+  <!-- SETUP -->
+  <section id="setupArea" class="panel">
+
+    <h2>Pengaturan Photobooth</h2>
+
+    <div class="setting-grid">
+
+      <div class="setting-card">
+        <label>Jumlah Foto</label>
+
+        <select id="jumlahFoto">
+          <option value="1">1 Foto</option>
+          <option value="2">2 Foto</option>
+          <option value="3">3 Foto</option>
+          <option value="4" selected>4 Foto</option>
+          <option value="5">5 Foto</option>
+          <option value="6">6 Foto</option>
+          <option value="7">7 Foto</option>
+          <option value="8">8 Foto</option>
+        </select>
+      </div>
+
+
+      <div class="setting-card">
+        <label>Countdown</label>
+
+        <select id="durasiCountdown">
+          <option value="3">3 detik</option>
+          <option value="5" selected>5 detik</option>
+          <option value="10">10 detik</option>
+        </select>
+      </div>
+
+
+      <div class="setting-card">
+        <label>Template</label>
+
+        <input
+          type="file"
+          id="templateInput"
+          accept="image/png,image/jpeg,image/webp"
+          hidden
+        >
+
+        <button
+          class="secondary-btn"
+          id="btnTemplate"
+          type="button"
+        >
+          🖼️ Pilih Template
+        </button>
+
+        <div id="templateName">
+          Template default
+        </div>
+      </div>
+
+    </div>
+
+
+    <div class="template-preview-box">
+      <img id="templatePreview" src="" alt="Preview template">
+      <div id="templatePlaceholder">
+        Belum ada template
+      </div>
+    </div>
+
+
+    <button
+      id="btnMulai"
+      class="primary-btn big"
+      type="button"
+    >
+      📸 MULAI PHOTOBOOTH
+    </button>
+
+  </section>
+
+
+  <!-- CAMERA -->
+  <section id="cameraArea" class="panel hidden">
+
+    <div class="camera-header">
+
+      <div>
+        <strong id="statusFoto">
+          Siap mengambil foto
+        </strong>
+
+        <div id="progressFoto">
+          Foto 0 / 4
+        </div>
+      </div>
+
+      <button
+        id="btnStopCamera"
+        class="danger-btn"
+        type="button"
+      >
+        ✕ Berhenti
+      </button>
+
+    </div>
+
+
+    <div class="camera-container">
+
+      <video
+        id="kamera"
+        autoplay
+        playsinline
+        muted
+      ></video>
+
+      <canvas id="cameraOverlay"></canvas>
+
+      <div id="countdownDisplay"></div>
+
+    </div>
+
+
+    <canvas id="cameraCanvas" class="hidden"></canvas>
+
+
+    <button
+      id="btnJepret"
+      class="primary-btn big"
+      type="button"
+    >
+      📸 JEPRET
+    </button>
+
+  </section>
+
+
+  <!-- PHOTO GRID -->
+  <section id="gridArea" class="panel hidden">
+
+    <div class="section-title">
+
+      <div>
+        <h2>Hasil Foto</h2>
+        <p>
+          Tekan <b>Retake</b> hanya pada foto yang ingin diulang.
+        </p>
+      </div>
+
+      <button
+        id="btnTambahFoto"
+        class="secondary-btn"
+        type="button"
+      >
+        📸 Foto Ulang
+      </button>
+
+    </div>
+
+
+    <div id="photoGrid" class="photo-grid"></div>
+
+
+    <div class="grid-actions">
+
+      <button
+        id="btnGabungkan"
+        class="primary-btn"
+        type="button"
+      >
+        🖼️ BUAT HASIL AKHIR
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- FINAL RESULT -->
+  <section id="resultArea" class="panel hidden">
+
+    <h2>Hasil Akhir</h2>
+
+
+    <div class="final-preview">
+
+      <img
+        id="finalImage"
+        alt="Hasil akhir"
+      >
+
+    </div>
+
+
+    <div class="result-actions">
+
+      <button
+        id="btnSavePhoto"
+        class="primary-btn"
+        type="button"
+      >
+        💾 SIMPAN FOTO
+      </button>
+
+
+      <button
+        id="btnMakeGif"
+        class="secondary-btn"
+        type="button"
+      >
+        🎞️ BUAT GIF
+      </button>
+
+
+      <button
+        id="btnMakeVideo"
+        class="secondary-btn"
+        type="button"
+      >
+        🎥 BUAT VIDEO
+      </button>
+
+
+      <button
+        id="btnNewSession"
+        class="danger-btn"
+        type="button"
+      >
+        🔄 SESI BARU
+      </button>
+
+    </div>
+
+
+    <!-- MEDIA PREVIEW -->
+
+    <div id="mediaArea" class="media-area hidden">
+
+      <h3>Media Tambahan</h3>
+
+      <img
+        id="gifPreview"
+        class="media-preview hidden"
+        alt="GIF"
+      >
+
+      <video
+        id="videoPreview"
+        class="media-preview hidden"
+        controls
+      ></video>
+
+    </div>
+
+
+    <!-- SAVE / UPLOAD -->
+
+    <div id="uploadStatus" class="upload-status hidden">
+
+      <div class="loading-spinner"></div>
+
+      <strong id="uploadText">
+        Mengupload hasil...
+      </strong>
+
+      <div class="progress-container">
+        <div id="uploadProgress"></div>
+      </div>
+
+    </div>
+
+
+    <!-- QR RESULT -->
+
+    <div id="qrArea" class="qr-area hidden">
+
+      <div class="success-icon">✅</div>
+
+      <h2>Foto Berhasil Disimpan!</h2>
+
+      <p>
+        Scan QR Code berikut menggunakan HP
+        untuk membuka dan mengunduh hasil.
+      </p>
+
+
+      <div class="qr-box">
+        <canvas id="qrCanvas"></canvas>
+      </div>
+
+
+      <div class="share-url">
+
+        <input
+          id="resultUrl"
+          type="text"
+          readonly
+        >
+
+        <button
+          id="btnCopyUrl"
+          class="secondary-btn"
+          type="button"
+        >
+          📋 Salin
+        </button>
+
+      </div>
+
+
+      <a
+        id="openResult"
+        class="primary-btn link-button"
+        target="_blank"
+        rel="noopener"
+      >
+        🌐 Buka Halaman Hasil
+      </a>
+
+    </div>
+
+  </section>
+
+
+  <!-- MESSAGE -->
+
+  <div id="messageBox" class="message hidden"></div>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
