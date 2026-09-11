@@ -1,2215 +1,3028 @@
 /* =========================================================
    TERASYAQUB PHOTOBOOTH
-   Camera + 1-8 Photos + Retake + Template
-   + Final Image + GIF + Video
-   + Supabase Storage + QR
-========================================================= */
-
-
-/* =========================================================
-   1. SUPABASE CONFIGURATION
-=========================================================
-
-   GANTI DUA NILAI DI BAWAH INI DENGAN MILIK ANDA.
-
-   Jangan gunakan service_role key.
-
-========================================================= */
-
-const SUPABASE_URL =
-  "https://GANTI-PROJECT-ANDA.supabase.co";
-
-const SUPABASE_ANON_KEY =
-  "GANTI-ANON-KEY-ANDA";
-
-
-const supabaseClient =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
-
-
-/* =========================================================
-   SUPABASE STORAGE
-========================================================= */
-
-const STORAGE_BUCKET = "photobooth";
-
-
-/* =========================================================
-   GLOBAL STATE
-========================================================= */
-
-let cameraStream = null;
-
-let jumlahFoto = 4;
-
-let countdown = 5;
-
-let currentPhotoIndex = 0;
-
-let photos = [];
-
-let templateImage = null;
-
-let templateObjectUrl = null;
-
-let finalBlob = null;
-
-let gifBlob = null;
-
-let videoBlob = null;
-
-let sessionId = null;
-
-
-/* =========================================================
-   DOM
-========================================================= */
-
-const kamera =
-  document.getElementById("kamera");
-
-const cameraCanvas =
-  document.getElementById("cameraCanvas");
-
-const cameraOverlay =
-  document.getElementById("cameraOverlay");
-
-const countdownDisplay =
-  document.getElementById("countdownDisplay");
-
-const setupArea =
-  document.getElementById("setupArea");
-
-const cameraArea =
-  document.getElementById("cameraArea");
-
-const gridArea =
-  document.getElementById("gridArea");
-
-const resultArea =
-  document.getElementById("resultArea");
-
-const photoGrid =
-  document.getElementById("photoGrid");
-
-const jumlahFotoInput =
-  document.getElementById("jumlahFoto");
-
-const countdownInput =
-  document.getElementById("durasiCountdown");
-
-const templateInput =
-  document.getElementById("templateInput");
-
-const templatePreview =
-  document.getElementById("templatePreview");
-
-const templatePlaceholder =
-  document.getElementById("templatePlaceholder");
-
-const templateName =
-  document.getElementById("templateName");
-
-const finalImage =
-  document.getElementById("finalImage");
-
-const qrCanvas =
-  document.getElementById("qrCanvas");
-
-const resultUrl =
-  document.getElementById("resultUrl");
-
-const qrArea =
-  document.getElementById("qrArea");
-
-const uploadStatus =
-  document.getElementById("uploadStatus");
-
-const uploadText =
-  document.getElementById("uploadText");
-
-const uploadProgress =
-  document.getElementById("uploadProgress");
-
-const gifPreview =
-  document.getElementById("gifPreview");
-
-const videoPreview =
-  document.getElementById("videoPreview");
-
-const mediaArea =
-  document.getElementById("mediaArea");
-
-const messageBox =
-  document.getElementById("messageBox");
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function showMessage(text, duration = 3000) {
-
-  messageBox.textContent = text;
-
-  messageBox.classList.remove("hidden");
-
-  setTimeout(() => {
-
-    messageBox.classList.add("hidden");
-
-  }, duration);
-}
-
-
-function show(element) {
-
-  element.classList.remove("hidden");
-
-}
-
-
-function hide(element) {
-
-  element.classList.add("hidden");
-
-}
-
-
-function sleep(ms) {
-
-  return new Promise(resolve =>
-    setTimeout(resolve, ms)
-  );
-
-}
-
-
-function generateSessionId() {
+   script.js
+   ========================================================= */
+
+(() => {
+  "use strict";
+
+  /* =======================================================
+     CONFIG
+     ======================================================= */
+
+  const CONFIG = window.TERASYAQUB_CONFIG || {};
+
+  const SUPABASE_URL = CONFIG.SUPABASE_URL || "";
+  const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY || "";
+  const STORAGE_BUCKET = CONFIG.STORAGE_BUCKET || "photobooth";
+  const PRINT_MODE = CONFIG.PRINT_MODE || "browser";
+  const PRINT_BRIDGE_URL =
+    CONFIG.PRINT_BRIDGE_URL || "http://127.0.0.1:8787";
+  const PRINTER_NAME = CONFIG.PRINTER_NAME || "";
+  const APP_NAME = CONFIG.APP_NAME || "TERASYAQUB PHOTOBOOTH";
+  const BRAND = CONFIG.BRAND || "PHOTOBOOTH TERASYAQUB";
+
+  let supabaseClient = null;
 
   if (
-    window.crypto &&
-    crypto.randomUUID
+    window.supabase &&
+    SUPABASE_URL &&
+    SUPABASE_ANON_KEY &&
+    !SUPABASE_URL.includes("MASUKKAN_") &&
+    !SUPABASE_ANON_KEY.includes("MASUKKAN_")
   ) {
-
-    return crypto.randomUUID();
-
+    try {
+      supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+      );
+    } catch (error) {
+      console.error("Supabase initialization error:", error);
+    }
   }
 
-  return (
-    Date.now().toString(36) +
-    "-" +
-    Math.random()
-      .toString(36)
-      .substring(2, 12)
-  );
-}
+  /* =======================================================
+     STATE
+     ======================================================= */
 
+  const state = {
+    stream: null,
 
-function blobFromDataURL(dataURL) {
+    photoCount: 4,
+    countdown: 3,
+    cameraFacing: "user",
 
-  const parts =
-    dataURL.split(",");
+    photos: [],
+    selectedPhotoIndex: null,
 
-  const mime =
-    parts[0]
-      .match(/:(.*?);/)[1];
+    templateFile: null,
+    templateImage: null,
 
-  const binary =
-    atob(parts[1]);
+    finalBlob: null,
+    finalDataUrl: "",
+    finalObjectUrl: "",
 
-  const array =
-    new Uint8Array(
-      binary.length
+    gifBlob: null,
+    gifObjectUrl: "",
+
+    videoBlob: null,
+    videoObjectUrl: "",
+
+    videoRecorder: null,
+    videoChunks: [],
+
+    sessionId: null,
+    resultUrl: "",
+
+    isCapturing: false,
+    isCameraRunning: false,
+
+    print: {
+      paper: "4r",
+      orientation: "portrait",
+      copies: 1,
+      margin: 0
+    }
+  };
+
+  /* =======================================================
+     DOM HELPER
+     ======================================================= */
+
+  const $ = (id) => document.getElementById(id);
+
+  const el = {
+    setupCard: $("setupCard"),
+
+    photoCount: $("photoCount"),
+    countdown: $("countdown"),
+    cameraFacing: $("cameraFacing"),
+    templateFile: $("templateFile"),
+
+    templatePreview: $("templatePreview"),
+    templateEmpty: $("templateEmpty"),
+
+    startCameraBtn: $("startCameraBtn"),
+
+    cameraCard: $("cameraCard"),
+    cameraVideo: $("cameraVideo"),
+    cameraCanvas: $("cameraCanvas"),
+
+    countdownOverlay: $("countdownOverlay"),
+    countdownNumber: $("countdownNumber"),
+
+    cameraFrame: $("cameraFrame"),
+
+    captureBtn: $("captureBtn"),
+    stopCameraBtn: $("stopCameraBtn"),
+
+    photoProgress: $("photoProgress"),
+    currentPhotoNumber: $("currentPhotoNumber"),
+
+    reviewCard: $("reviewCard"),
+    reviewGrid: $("reviewGrid"),
+    retakeAllBtn: $("retakeAllBtn"),
+    createFinalBtn: $("createFinalBtn"),
+
+    finalCard: $("finalCard"),
+    finalImage: $("finalImage"),
+
+    downloadJpgBtn: $("downloadJpgBtn"),
+
+    createGifBtn: $("createGifBtn"),
+    createVideoBtn: $("createVideoBtn"),
+
+    gifResultBox: $("gifResultBox"),
+    gifPreview: $("gifPreview"),
+    downloadGifBtn: $("downloadGifBtn"),
+
+    videoResultBox: $("videoResultBox"),
+    videoPreview: $("videoPreview"),
+    downloadVideoBtn: $("downloadVideoBtn"),
+
+    printCard: $("printCard"),
+
+    paperSize: $("paperSize"),
+    printOrientation: $("printOrientation"),
+    printCopies: $("printCopies"),
+    printMargin: $("printMargin"),
+    printMode: $("printMode"),
+
+    printBtn: $("printBtn"),
+    printStatus: $("printStatus"),
+
+    onlineCard: $("onlineCard"),
+    saveOnlineBtn: $("saveOnlineBtn"),
+    uploadStatus: $("uploadStatus"),
+
+    qrBox: $("qrBox"),
+    qrcode: $("qrcode"),
+    resultUrl: $("resultUrl"),
+    copyResultUrlBtn: $("copyResultUrlBtn"),
+
+    newSessionCard: $("newSessionCard"),
+    newSessionBtn: $("newSessionBtn"),
+
+    loadingOverlay: $("loadingOverlay"),
+    loadingText: $("loadingText"),
+
+    toast: $("toast"),
+    toastMessage: $("toastMessage")
+  };
+
+  /* =======================================================
+     GENERAL HELPERS
+     ======================================================= */
+
+  function showToast(message, duration = 3000) {
+    if (!el.toast || !el.toastMessage) return;
+
+    el.toastMessage.textContent = message;
+    el.toast.classList.add("show");
+
+    clearTimeout(showToast.timer);
+
+    showToast.timer = setTimeout(() => {
+      el.toast.classList.remove("show");
+    }, duration);
+  }
+
+  function showLoading(message = "Memproses...") {
+    if (!el.loadingOverlay) return;
+
+    if (el.loadingText) {
+      el.loadingText.textContent = message;
+    }
+
+    el.loadingOverlay.classList.add("show");
+  }
+
+  function hideLoading() {
+    if (!el.loadingOverlay) return;
+    el.loadingOverlay.classList.remove("show");
+  }
+
+  function setStatus(target, message, type = "") {
+    if (!target) return;
+
+    target.textContent = message;
+
+    target.classList.remove(
+      "success",
+      "error",
+      "warning",
+      "info"
     );
 
-  for (
-    let i = 0;
-    i < binary.length;
-    i++
-  ) {
-
-    array[i] =
-      binary.charCodeAt(i);
-
+    if (type) {
+      target.classList.add(type);
+    }
   }
 
-  return new Blob(
-    [array],
-    { type: mime }
-  );
-}
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 
+  function uuid() {
+    if (crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
 
-function downloadBlob(
-  blob,
-  filename
-) {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x"
+          ? r
+          : (r & 0x3) | 0x8;
 
-  const url =
-    URL.createObjectURL(blob);
+        return v.toString(16);
+      }
+    );
+  }
 
-  const a =
-    document.createElement("a");
+  function isValidImageFile(file) {
+    if (!file) return false;
 
-  a.href = url;
+    return [
+      "image/png",
+      "image/jpeg",
+      "image/webp"
+    ].includes(file.type);
+  }
 
-  a.download = filename;
+  function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
 
-  document.body.appendChild(a);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
 
-  a.click();
+      reader.readAsDataURL(blob);
+    });
+  }
 
-  a.remove();
+  function dataURLToBlob(dataURL) {
+    const parts = dataURL.split(",");
+    const mime = parts[0]
+      .match(/:(.*?);/)[1];
 
-  setTimeout(() => {
+    const binary = atob(parts[1]);
+    const array = new Uint8Array(binary.length);
 
-    URL.revokeObjectURL(url);
+    for (let i = 0; i < binary.length; i++) {
+      array[i] = binary.charCodeAt(i);
+    }
 
-  }, 1000);
-}
+    return new Blob([array], { type: mime });
+  }
 
+  function downloadBlob(blob, filename) {
+    if (!blob) return;
 
-/* =========================================================
-   2. TEMPLATE
-========================================================= */
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
 
-document
-  .getElementById("btnTemplate")
-  .addEventListener(
-    "click",
-    () => templateInput.click()
-  );
+    a.href = url;
+    a.download = filename;
 
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 
-templateInput.addEventListener(
-  "change",
-  async event => {
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
 
-    const file =
-      event.target.files[0];
+  function downloadDataUrl(dataURL, filename) {
+    if (!dataURL) return;
+
+    const blob = dataURLToBlob(dataURL);
+    downloadBlob(blob, filename);
+  }
+
+  function getFileExtension(file) {
+    if (!file) return "jpg";
+
+    if (file.type === "image/png") return "png";
+    if (file.type === "image/webp") return "webp";
+
+    return "jpg";
+  }
+
+  /* =======================================================
+     UI SECTION HELPERS
+     ======================================================= */
+
+  function showCard(card) {
+    if (!card) return;
+
+    card.classList.remove("hidden");
+  }
+
+  function hideCard(card) {
+    if (!card) return;
+
+    card.classList.add("hidden");
+  }
+
+  function scrollToElement(element) {
+    if (!element) return;
+
+    setTimeout(() => {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 100);
+  }
+
+  function updatePhotoProgress() {
+    if (el.photoProgress) {
+      el.photoProgress.textContent =
+        `${state.photos.length} / ${state.photoCount}`;
+    }
+
+    if (el.currentPhotoNumber) {
+      el.currentPhotoNumber.textContent =
+        Math.min(
+          state.photos.length + 1,
+          state.photoCount
+        );
+    }
+  }
+
+  /* =======================================================
+     TEMPLATE
+     ======================================================= */
+
+  function handleTemplateChange(event) {
+    const file = event.target.files?.[0];
 
     if (!file) return;
 
-    if (
-      !file.type.startsWith("image/")
-    ) {
-
-      showMessage(
-        "Template harus berupa gambar."
+    if (!isValidImageFile(file)) {
+      showToast(
+        "Template harus berupa PNG, JPG, JPEG, atau WebP."
       );
 
+      event.target.value = "";
       return;
-
     }
 
-    if (templateObjectUrl) {
+    state.templateFile = file;
 
-      URL.revokeObjectURL(
-        templateObjectUrl
-      );
+    const objectURL = URL.createObjectURL(file);
 
+    if (el.templatePreview) {
+      el.templatePreview.src = objectURL;
+      el.templatePreview.classList.remove("hidden");
     }
 
-    templateObjectUrl =
-      URL.createObjectURL(file);
-
-    templatePreview.src =
-      templateObjectUrl;
-
-    templatePreview.style.display =
-      "block";
-
-    templatePlaceholder.style.display =
-      "none";
-
-    templateName.textContent =
-      file.name;
-
-    templateImage =
-      await loadImage(
-        templateObjectUrl
-      );
-
-    showMessage(
-      "Template berhasil dipilih."
-    );
-
-  }
-);
-
-
-function loadImage(src) {
-
-  return new Promise(
-    (resolve, reject) => {
-
-      const img =
-        new Image();
-
-      img.onload =
-        () => resolve(img);
-
-      img.onerror =
-        reject;
-
-      img.src = src;
-
+    if (el.templateEmpty) {
+      el.templateEmpty.classList.add("hidden");
     }
-  );
-}
 
+    const img = new Image();
 
-/* =========================================================
-   3. START BUTTON
-========================================================= */
+    img.onload = () => {
+      state.templateImage = img;
+    };
 
-document
-  .getElementById("btnMulai")
-  .addEventListener(
-    "click",
-    startPhotobooth
-  );
+    img.src = objectURL;
 
-
-async function startPhotobooth() {
-
-  jumlahFoto =
-    Number(
-      jumlahFotoInput.value
-    );
-
-  countdown =
-    Number(
-      countdownInput.value
-    );
-
-  photos =
-    new Array(jumlahFoto)
-      .fill(null);
-
-  currentPhotoIndex = 0;
-
-  sessionId =
-    generateSessionId();
-
-  updateProgress();
-
-  renderPhotoGrid();
-
-  try {
-
-    await startCamera();
-
-    hide(setupArea);
-
-    hide(gridArea);
-
-    hide(resultArea);
-
-    show(cameraArea);
-
-    showMessage(
-      "Kamera siap."
-    );
-
-  } catch (error) {
-
-    console.error(error);
-
-    showMessage(
-      "Kamera tidak dapat diakses. Pastikan izin kamera diberikan."
-    );
-
+    showToast("Template berhasil dipilih.");
   }
 
-}
+  /* =======================================================
+     CAMERA
+     ======================================================= */
 
+  async function startCamera() {
+    try {
+      stopCamera(false);
 
-/* =========================================================
-   4. CAMERA
-========================================================= */
+      const facingMode =
+        state.cameraFacing === "environment"
+          ? "environment"
+          : "user";
 
-async function startCamera() {
-
-  if (cameraStream) {
-
-    stopCamera();
-
-  }
-
-  cameraStream =
-    await navigator.mediaDevices.getUserMedia({
-
-      video: {
-        facingMode: "user",
-        width: {
-          ideal: 1920
-        },
-        height: {
-          ideal: 1080
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode,
+          width: {
+            ideal: 1920
+          },
+          height: {
+            ideal: 1080
+          }
         }
-      },
+      };
 
-      audio: false
+      state.stream =
+        await navigator.mediaDevices.getUserMedia(
+          constraints
+        );
 
-    });
+      if (el.cameraVideo) {
+        el.cameraVideo.srcObject = state.stream;
 
-  kamera.srcObject =
-    cameraStream;
+        el.cameraVideo.setAttribute(
+          "playsinline",
+          ""
+        );
 
-  await kamera.play();
+        el.cameraVideo.muted = true;
 
-}
+        await el.cameraVideo.play();
+      }
 
+      state.isCameraRunning = true;
 
-function stopCamera() {
+      showCard(el.cameraCard);
 
-  if (!cameraStream) return;
+      if (el.captureBtn) {
+        el.captureBtn.disabled = false;
+      }
 
-  cameraStream
-    .getTracks()
-    .forEach(track =>
-      track.stop()
-    );
+      showToast("Kamera siap digunakan.");
 
-  cameraStream = null;
+      scrollToElement(el.cameraCard);
 
-  kamera.srcObject = null;
+    } catch (error) {
+      console.error("Camera error:", error);
 
-}
+      let message =
+        "Kamera tidak dapat dibuka.";
 
+      if (error.name === "NotAllowedError") {
+        message =
+          "Izin kamera ditolak. Silakan izinkan akses kamera.";
+      }
 
-/* =========================================================
-   STOP CAMERA
-========================================================= */
+      if (error.name === "NotFoundError") {
+        message =
+          "Kamera tidak ditemukan pada perangkat.";
+      }
 
-document
-  .getElementById("btnStopCamera")
-  .addEventListener(
-    "click",
-    () => {
+      if (error.name === "NotReadableError") {
+        message =
+          "Kamera sedang digunakan aplikasi lain.";
+      }
 
-      stopCamera();
-
-      hide(cameraArea);
-
-      show(setupArea);
-
+      showToast(message, 5000);
     }
-  );
-
-
-/* =========================================================
-   5. TAKE PHOTO
-========================================================= */
-
-document
-  .getElementById("btnJepret")
-  .addEventListener(
-    "click",
-    () => takePhoto()
-  );
-
-
-async function takePhoto() {
-
-  if (!cameraStream) {
-
-    showMessage(
-      "Kamera belum aktif."
-    );
-
-    return;
-
   }
 
-  if (
-    currentPhotoIndex >= jumlahFoto
-  ) {
+  function stopCamera(showMessage = true) {
+    if (state.stream) {
+      state.stream
+        .getTracks()
+        .forEach((track) => track.stop());
+    }
 
-    showMessage(
-      "Semua foto sudah diambil."
-    );
+    state.stream = null;
+    state.isCameraRunning = false;
 
-    return;
+    if (el.cameraVideo) {
+      el.cameraVideo.srcObject = null;
+    }
 
+    if (showMessage) {
+      showToast("Kamera dihentikan.");
+    }
   }
 
-  const btn =
-    document.getElementById(
-      "btnJepret"
-    );
+  function getVideoDimensions() {
+    const video = el.cameraVideo;
 
-  btn.disabled = true;
+    if (!video) {
+      return {
+        width: 1280,
+        height: 720
+      };
+    }
 
-  await runCountdown();
-
-  const photo =
-    captureCameraFrame();
-
-  photos[currentPhotoIndex] =
-    photo;
-
-  renderPhotoGrid();
-
-  currentPhotoIndex++;
-
-  updateProgress();
-
-  btn.disabled = false;
-
-  if (
-    currentPhotoIndex >= jumlahFoto
-  ) {
-
-    stopCamera();
-
-    hide(cameraArea);
-
-    show(gridArea);
-
-    showMessage(
-      "Semua foto selesai."
-    );
-
+    return {
+      width: video.videoWidth || 1280,
+      height: video.videoHeight || 720
+    };
   }
 
-}
+  function captureVideoFrame() {
+    const video = el.cameraVideo;
+    const canvas = el.cameraCanvas;
 
+    if (!video || !canvas) {
+      throw new Error("Kamera belum tersedia.");
+    }
 
-/* =========================================================
-   COUNTDOWN
-========================================================= */
+    const {
+      width,
+      height
+    } = getVideoDimensions();
 
-async function runCountdown() {
+    canvas.width = width;
+    canvas.height = height;
 
-  for (
-    let i = countdown;
-    i > 0;
-    i--
-  ) {
+    const ctx = canvas.getContext("2d");
 
-    countdownDisplay.textContent =
-      i;
+    ctx.save();
 
-    await sleep(1000);
+    /*
+      Kamera depan biasanya ditampilkan mirror.
+      Foto juga dibuat mirror agar hasil sama seperti preview.
+    */
 
-  }
+    if (state.cameraFacing === "user") {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+    }
 
-  countdownDisplay.textContent =
-    "📸";
-
-  await sleep(500);
-
-  countdownDisplay.textContent =
-    "";
-
-}
-
-
-/* =========================================================
-   CAPTURE CAMERA
-========================================================= */
-
-function captureCameraFrame() {
-
-  const videoWidth =
-    kamera.videoWidth;
-
-  const videoHeight =
-    kamera.videoHeight;
-
-  if (
-    !videoWidth ||
-    !videoHeight
-  ) {
-
-    throw new Error(
-      "Ukuran kamera tidak tersedia."
+    ctx.drawImage(
+      video,
+      0,
+      0,
+      width,
+      height
     );
 
-  }
+    ctx.restore();
 
-  cameraCanvas.width =
-    videoWidth;
-
-  cameraCanvas.height =
-    videoHeight;
-
-  const ctx =
-    cameraCanvas.getContext(
-      "2d"
-    );
-
-  /*
-    Mirror agar hasil foto seperti
-    preview kamera depan.
-  */
-
-  ctx.save();
-
-  ctx.translate(
-    videoWidth,
-    0
-  );
-
-  ctx.scale(-1, 1);
-
-  ctx.drawImage(
-    kamera,
-    0,
-    0,
-    videoWidth,
-    videoHeight
-  );
-
-  ctx.restore();
-
-  return cameraCanvas
-    .toDataURL(
+    return canvas.toDataURL(
       "image/jpeg",
       0.95
     );
+  }
 
-}
+  /* =======================================================
+     COUNTDOWN
+     ======================================================= */
 
-
-/* =========================================================
-   6. PHOTO GRID
-========================================================= */
-
-function renderPhotoGrid() {
-
-  photoGrid.innerHTML = "";
-
-  photoGrid.className =
-    "photo-grid grid-" +
-    jumlahFoto;
-
-  for (
-    let i = 0;
-    i < jumlahFoto;
-    i++
-  ) {
-
-    const card =
-      document.createElement(
-        "div"
-      );
-
-    card.className =
-      "photo-card";
-
-
-    const number =
-      document.createElement(
-        "div"
-      );
-
-    number.className =
-      "photo-number";
-
-    number.textContent =
-      "Foto " + (i + 1);
-
-    card.appendChild(number);
-
-
-    if (photos[i]) {
-
-      const img =
-        document.createElement(
-          "img"
-        );
-
-      img.src =
-        photos[i];
-
-      card.appendChild(img);
-
-
-      const btn =
-        document.createElement(
-          "button"
-        );
-
-      btn.className =
-        "retake-btn secondary-btn";
-
-      btn.textContent =
-        "🔄 Retake Foto " +
-        (i + 1);
-
-      btn.addEventListener(
-        "click",
-        () => retakePhoto(i)
-      );
-
-      card.appendChild(btn);
-
-    } else {
-
-      const empty =
-        document.createElement(
-          "div"
-        );
-
-      empty.style.aspectRatio =
-        "4 / 3";
-
-      empty.style.display =
-        "flex";
-
-      empty.style.alignItems =
-        "center";
-
-      empty.style.justifyContent =
-        "center";
-
-      empty.textContent =
-        "Belum ada foto";
-
-      card.appendChild(empty);
-
+  async function runCountdown(seconds) {
+    if (!el.countdownOverlay ||
+        !el.countdownNumber) {
+      await delay(seconds * 1000);
+      return;
     }
 
-    photoGrid.appendChild(card);
+    el.countdownOverlay.classList.remove(
+      "hidden"
+    );
 
+    for (let i = seconds; i > 0; i--) {
+      el.countdownNumber.textContent = i;
+
+      await delay(1000);
+    }
+
+    el.countdownNumber.textContent = "📸";
+
+    await delay(350);
+
+    el.countdownOverlay.classList.add(
+      "hidden"
+    );
   }
 
-}
+  /* =======================================================
+     CAPTURE SESSION
+     ======================================================= */
 
+  async function captureOnePhoto() {
+    if (!state.isCameraRunning) {
+      showToast("Kamera belum aktif.");
+      return null;
+    }
 
-/* =========================================================
-   RETAKE PER FOTO
-========================================================= */
+    await runCountdown(
+      state.countdown
+    );
 
-async function retakePhoto(index) {
+    try {
+      return captureVideoFrame();
+    } catch (error) {
+      console.error(error);
 
-  currentPhotoIndex =
-    index;
-
-  try {
-
-    await startCamera();
-
-    hide(gridArea);
-
-    hide(resultArea);
-
-    show(cameraArea);
-
-    updateProgress();
-
-    const btn =
-      document.getElementById(
-        "btnJepret"
+      showToast(
+        "Gagal mengambil foto."
       );
 
-    btn.disabled = false;
-
-    showMessage(
-      "Retake Foto " +
-      (index + 1)
-    );
-
-  } catch (error) {
-
-    console.error(error);
-
-    showMessage(
-      "Tidak bisa membuka kamera."
-    );
-
+      return null;
+    }
   }
 
-}
+  async function startPhotoSession() {
+    if (state.isCapturing) return;
 
+    if (!state.isCameraRunning) {
+      await startCamera();
+    }
 
-/* =========================================================
-   PROGRESS
-========================================================= */
+    if (!state.isCameraRunning) return;
 
-function updateProgress() {
+    state.isCapturing = true;
 
-  document.getElementById(
-    "progressFoto"
-  ).textContent =
-    "Foto " +
-    Math.min(
-      currentPhotoIndex,
-      jumlahFoto
-    ) +
-    " / " +
-    jumlahFoto;
+    state.photos = [];
 
-}
+    updatePhotoProgress();
 
+    hideCard(el.reviewCard);
+    hideCard(el.finalCard);
+    hideCard(el.printCard);
+    hideCard(el.onlineCard);
+    hideCard(el.newSessionCard);
 
-/* =========================================================
-   7. TAMBAH / FOTO ULANG
-========================================================= */
+    try {
+      for (
+        let i = 0;
+        i < state.photoCount;
+        i++
+      ) {
+        updatePhotoProgress();
 
-document
-  .getElementById("btnTambahFoto")
-  .addEventListener(
-    "click",
-    async () => {
+        const photo =
+          await captureOnePhoto();
 
-      const emptyIndex =
-        photos.findIndex(
-          photo => !photo
-        );
+        if (!photo) {
+          break;
+        }
+
+        state.photos.push(photo);
+
+        updatePhotoProgress();
+
+        renderReviewGrid();
+
+        /*
+          Jeda antar foto agar pengguna
+          punya waktu bersiap.
+        */
+
+        if (
+          i < state.photoCount - 1
+        ) {
+          await delay(600);
+        }
+      }
 
       if (
-        emptyIndex === -1
+        state.photos.length ===
+        state.photoCount
       ) {
+        showCard(el.reviewCard);
 
-        await retakePhoto(0);
-
-      } else {
-
-        await retakePhoto(
-          emptyIndex
+        scrollToElement(
+          el.reviewCard
         );
 
+        showToast(
+          "Semua foto berhasil diambil."
+        );
       }
 
+    } finally {
+      state.isCapturing = false;
     }
-  );
-
-
-/* =========================================================
-   8. FINAL IMAGE
-========================================================= */
-
-document
-  .getElementById("btnGabungkan")
-  .addEventListener(
-    "click",
-    async () => {
-
-      const complete =
-        photos.every(
-          photo => photo
-        );
-
-      if (!complete) {
-
-        showMessage(
-          "Semua foto harus diisi terlebih dahulu."
-        );
-
-        return;
-
-      }
-
-      try {
-
-        showMessage(
-          "Membuat hasil akhir..."
-        );
-
-        finalBlob =
-          await createFinalImage();
-
-        const url =
-          URL.createObjectURL(
-            finalBlob
-          );
-
-        finalImage.src =
-          url;
-
-        hide(gridArea);
-
-        show(resultArea);
-
-        showMessage(
-          "Hasil akhir siap."
-        );
-
-      } catch (error) {
-
-        console.error(error);
-
-        showMessage(
-          "Gagal membuat hasil akhir."
-        );
-
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   CREATE FINAL IMAGE
-
-   Jika template tersedia:
-   template dianggap sebagai overlay
-   yang menutupi canvas.
-
-   Jika template tidak tersedia:
-   foto disusun grid otomatis.
-========================================================= */
-
-async function createFinalImage() {
-
-  const images = [];
-
-  for (
-    const photo of photos
-  ) {
-
-    images.push(
-      await loadImage(photo)
-    );
-
   }
 
+  /* =======================================================
+     REVIEW PHOTOS
+     ======================================================= */
 
-  /*
-    Layout:
-    1 = 1x1
-    2 = 2x1
-    3-4 = 2x2
-    5-6 = 3x2
-    7-8 = 4x2
-  */
+  function renderReviewGrid() {
+    if (!el.reviewGrid) return;
 
-  let cols;
+    el.reviewGrid.innerHTML = "";
 
-  if (jumlahFoto === 1) {
+    state.photos.forEach(
+      (dataURL, index) => {
+        const item =
+          document.createElement("div");
 
-    cols = 1;
+        item.className =
+          "review-item";
 
-  } else if (
-    jumlahFoto === 2
-  ) {
+        item.innerHTML = `
+          <div class="review-number">
+            FOTO ${index + 1}
+          </div>
 
-    cols = 2;
+          <img
+            src="${dataURL}"
+            alt="Foto ${index + 1}"
+          >
 
-  } else if (
-    jumlahFoto <= 4
-  ) {
+          <button
+            type="button"
+            class="btn btn-small review-retake"
+            data-index="${index}"
+          >
+            Retake
+          </button>
+        `;
 
-    cols = 2;
+        el.reviewGrid.appendChild(item);
+      }
+    );
 
-  } else if (
-    jumlahFoto <= 6
-  ) {
+    el.reviewGrid
+      .querySelectorAll(
+        ".review-retake"
+      )
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => {
+            const index =
+              Number(
+                button.dataset.index
+              );
 
-    cols = 3;
-
-  } else {
-
-    cols = 4;
-
+            retakePhoto(index);
+          }
+        );
+      });
   }
 
-
-  const rows =
-    Math.ceil(
-      jumlahFoto / cols
-    );
-
-
-  const cellWidth =
-    1200;
-
-  const cellHeight =
-    900;
-
-
-  const canvas =
-    document.createElement(
-      "canvas"
-    );
-
-  canvas.width =
-    cellWidth * cols;
-
-  canvas.height =
-    cellHeight * rows;
-
-
-  const ctx =
-    canvas.getContext("2d");
-
-
-  ctx.fillStyle =
-    "#ffffff";
-
-  ctx.fillRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-
-  images.forEach(
-    (img, index) => {
-
-      const col =
-        index % cols;
-
-      const row =
-        Math.floor(
-          index / cols
-        );
-
-      const x =
-        col * cellWidth;
-
-      const y =
-        row * cellHeight;
-
-
-      /*
-        Crop foto agar memenuhi cell.
-      */
-
-      const scale =
-        Math.max(
-          cellWidth / img.width,
-          cellHeight / img.height
-        );
-
-      const width =
-        img.width * scale;
-
-      const height =
-        img.height * scale;
-
-      const dx =
-        x +
-        (cellWidth - width) / 2;
-
-      const dy =
-        y +
-        (cellHeight - height) / 2;
-
-
-      ctx.save();
-
-      ctx.beginPath();
-
-      ctx.rect(
-        x,
-        y,
-        cellWidth,
-        cellHeight
-      );
-
-      ctx.clip();
-
-
-      ctx.drawImage(
-        img,
-        dx,
-        dy,
-        width,
-        height
-      );
-
-      ctx.restore();
-
+  async function retakePhoto(index) {
+    if (
+      index < 0 ||
+      index >= state.photos.length
+    ) {
+      return;
     }
-  );
 
+    if (!state.isCameraRunning) {
+      await startCamera();
+    }
 
-  /*
-    Template overlay
-  */
+    if (!state.isCameraRunning) {
+      return;
+    }
 
-  if (templateImage) {
+    showToast(
+      `Bersiap mengambil ulang foto ${index + 1}.`
+    );
+
+    const photo =
+      await captureOnePhoto();
+
+    if (!photo) return;
+
+    state.photos[index] = photo;
+
+    renderReviewGrid();
+
+    showToast(
+      `Foto ${index + 1} berhasil diganti.`
+    );
+  }
+
+  function retakeAllPhotos() {
+    state.photos = [];
+
+    updatePhotoProgress();
+
+    hideCard(el.reviewCard);
+    hideCard(el.finalCard);
+    hideCard(el.printCard);
+    hideCard(el.onlineCard);
+    hideCard(el.newSessionCard);
+
+    renderReviewGrid();
+
+    startPhotoSession();
+  }
+
+  /* =======================================================
+     IMAGE COVER / CROP
+     ======================================================= */
+
+  function drawImageCover(
+    ctx,
+    img,
+    x,
+    y,
+    width,
+    height
+  ) {
+    const imgWidth =
+      img.videoWidth ||
+      img.naturalWidth ||
+      img.width;
+
+    const imgHeight =
+      img.videoHeight ||
+      img.naturalHeight ||
+      img.height;
+
+    if (
+      !imgWidth ||
+      !imgHeight
+    ) {
+      return;
+    }
+
+    const imageRatio =
+      imgWidth / imgHeight;
+
+    const boxRatio =
+      width / height;
+
+    let sourceWidth =
+      imgWidth;
+
+    let sourceHeight =
+      imgHeight;
+
+    let sourceX = 0;
+    let sourceY = 0;
+
+    if (imageRatio > boxRatio) {
+      sourceWidth =
+        imgHeight * boxRatio;
+
+      sourceX =
+        (imgWidth - sourceWidth) / 2;
+
+    } else {
+      sourceHeight =
+        imgWidth / boxRatio;
+
+      sourceY =
+        (imgHeight - sourceHeight) / 2;
+    }
 
     ctx.drawImage(
-      templateImage,
-      0,
-      0,
-      canvas.width,
-      canvas.height
+      img,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      x,
+      y,
+      width,
+      height
     );
-
   }
 
+  function loadImage(dataURL) {
+    return new Promise(
+      (resolve, reject) => {
+        const img =
+          new Image();
 
-  return new Promise(
-    resolve => {
+        img.onload = () =>
+          resolve(img);
 
-      canvas.toBlob(
-        blob => resolve(blob),
-        "image/jpeg",
-        0.95
-      );
+        img.onerror = reject;
 
-    }
-  );
-
-}
-
-
-/* =========================================================
-   9. SAVE PHOTO LOCAL
-========================================================= */
-
-document
-  .getElementById("btnSavePhoto")
-  .addEventListener(
-    "click",
-    saveAllOnline
-  );
-
-
-/* =========================================================
-   10. GIF
-========================================================= */
-
-document
-  .getElementById("btnMakeGif")
-  .addEventListener(
-    "click",
-    createGIF
-  );
-
-
-async function createGIF() {
-
-  if (!photos.length) {
-
-    showMessage(
-      "Belum ada foto."
+        img.src = dataURL;
+      }
     );
-
-    return;
-
   }
 
-  try {
+  /* =======================================================
+     FINAL COMPOSITION
+     ======================================================= */
 
-    showMessage(
-      "Membuat GIF..."
-    );
+  function calculateGrid(
+    count,
+    width,
+    height
+  ) {
+    /*
+      Komposisi 3:4.
 
-    const gif =
-      new GIF({
+      1 = full
+      2 = 2 horizontal
+      3 = 1 atas + 2 bawah
+      4 = 2x2
+      5 = 2 atas + 3 bawah
+      6 = 2x3
+      7 = 3 atas + 4 bawah
+      8 = 4x2
+    */
 
-        workers: 2,
+    const cells = [];
 
-        quality: 10,
-
-        width: 600,
-
-        height: 450,
-
-        workerScript:
-          "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"
-
+    if (count === 1) {
+      cells.push({
+        x: 0,
+        y: 0,
+        w: width,
+        h: height
       });
 
+      return cells;
+    }
 
-    for (
-      const photo of photos
+    if (count === 2) {
+      const h = height / 2;
+
+      for (let i = 0; i < 2; i++) {
+        cells.push({
+          x: 0,
+          y: i * h,
+          w: width,
+          h
+        });
+      }
+
+      return cells;
+    }
+
+    if (count === 3) {
+      const topH =
+        height * 0.52;
+
+      cells.push({
+        x: 0,
+        y: 0,
+        w: width,
+        h: topH
+      });
+
+      const bottomH =
+        height - topH;
+
+      const w =
+        width / 2;
+
+      cells.push({
+        x: 0,
+        y: topH,
+        w,
+        h: bottomH
+      });
+
+      cells.push({
+        x: w,
+        y: topH,
+        w,
+        h: bottomH
+      });
+
+      return cells;
+    }
+
+    if (count === 4) {
+      const w = width / 2;
+      const h = height / 2;
+
+      for (let row = 0; row < 2; row++) {
+        for (
+          let col = 0;
+          col < 2;
+          col++
+        ) {
+          cells.push({
+            x: col * w,
+            y: row * h,
+            w,
+            h
+          });
+        }
+      }
+
+      return cells;
+    }
+
+    if (count === 5) {
+      const topH =
+        height * 0.5;
+
+      const bottomH =
+        height - topH;
+
+      const topW =
+        width / 2;
+
+      cells.push({
+        x: 0,
+        y: 0,
+        w: topW,
+        h: topH
+      });
+
+      cells.push({
+        x: topW,
+        y: 0,
+        w: topW,
+        h: topH
+      });
+
+      const bottomW =
+        width / 3;
+
+      for (let i = 0; i < 3; i++) {
+        cells.push({
+          x: i * bottomW,
+          y: topH,
+          w: bottomW,
+          h: bottomH
+        });
+      }
+
+      return cells;
+    }
+
+    if (count === 6) {
+      const w = width / 2;
+      const h = height / 3;
+
+      for (let row = 0; row < 3; row++) {
+        for (
+          let col = 0;
+          col < 2;
+          col++
+        ) {
+          cells.push({
+            x: col * w,
+            y: row * h,
+            w,
+            h
+          });
+        }
+      }
+
+      return cells;
+    }
+
+    if (count === 7) {
+      const topH =
+        height * 0.5;
+
+      const bottomH =
+        height - topH;
+
+      const topW =
+        width / 3;
+
+      for (let i = 0; i < 3; i++) {
+        cells.push({
+          x: i * topW,
+          y: 0,
+          w: topW,
+          h: topH
+        });
+      }
+
+      const bottomW =
+        width / 4;
+
+      for (let i = 0; i < 4; i++) {
+        cells.push({
+          x: i * bottomW,
+          y: topH,
+          w: bottomW,
+          h: bottomH
+        });
+      }
+
+      return cells;
+    }
+
+    /*
+      8 foto
+    */
+
+    const w = width / 2;
+    const h = height / 4;
+
+    for (let row = 0; row < 4; row++) {
+      for (
+        let col = 0;
+        col < 2;
+        col++
+      ) {
+        cells.push({
+          x: col * w,
+          y: row * h,
+          w,
+          h
+        });
+      }
+    }
+
+    return cells;
+  }
+
+  async function createFinalComposition() {
+    if (
+      state.photos.length === 0
     ) {
+      showToast(
+        "Belum ada foto."
+      );
 
-      const img =
-        await loadImage(photo);
+      return;
+    }
 
+    showLoading(
+      "Membuat foto final..."
+    );
+
+    try {
+      const width = 1800;
+      const height = 2400;
 
       const canvas =
         document.createElement(
           "canvas"
         );
 
-      canvas.width = 600;
-
-      canvas.height = 450;
+      canvas.width = width;
+      canvas.height = height;
 
       const ctx =
         canvas.getContext("2d");
 
+      /*
+        Background putih.
+      */
 
-      const scale =
-        Math.max(
-          600 / img.width,
-          450 / img.height
-        );
-
-      const width =
-        img.width * scale;
-
-      const height =
-        img.height * scale;
-
-
-      ctx.fillStyle =
-        "white";
-
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(
         0,
         0,
-        600,
-        450
-      );
-
-
-      ctx.drawImage(
-        img,
-        (600 - width) / 2,
-        (450 - height) / 2,
         width,
         height
       );
 
+      const images = [];
 
-      /*
-        Template pada GIF.
-      */
-
-      if (templateImage) {
-
-        ctx.drawImage(
-          templateImage,
-          0,
-          0,
-          600,
-          450
+      for (
+        const photo of state.photos
+      ) {
+        images.push(
+          await loadImage(photo)
         );
-
       }
 
+      const cells =
+        calculateGrid(
+          images.length,
+          width,
+          height
+        );
 
-      gif.addFrame(
-        canvas,
-        {
-          delay: 900,
-          copy: true
+      /*
+        Margin kecil antar foto.
+      */
+
+      const gap = 8;
+
+      images.forEach(
+        (img, index) => {
+          const cell =
+            cells[index];
+
+          if (!cell) return;
+
+          drawImageCover(
+            ctx,
+            img,
+            cell.x + gap / 2,
+            cell.y + gap / 2,
+            cell.w - gap,
+            cell.h - gap
+          );
         }
       );
 
+      /*
+        Overlay template.
+        Template transparan PNG sangat cocok.
+      */
+
+      if (state.templateImage) {
+        ctx.drawImage(
+          state.templateImage,
+          0,
+          0,
+          width,
+          height
+        );
+      }
+
+      /*
+        Tambahkan branding jika template
+        tidak dipilih.
+      */
+
+      if (!state.templateImage) {
+        ctx.save();
+
+        ctx.fillStyle =
+          "rgba(255,255,255,0.92)";
+
+        ctx.fillRect(
+          0,
+          height - 150,
+          width,
+          150
+        );
+
+        ctx.fillStyle =
+          "#111111";
+
+        ctx.font =
+          "bold 52px Arial";
+
+        ctx.textAlign =
+          "center";
+
+        ctx.textBaseline =
+          "middle";
+
+        ctx.fillText(
+          BRAND,
+          width / 2,
+          height - 75
+        );
+
+        ctx.restore();
+      }
+
+      state.finalDataUrl =
+        canvas.toDataURL(
+          "image/jpeg",
+          0.95
+        );
+
+      state.finalBlob =
+        dataURLToBlob(
+          state.finalDataUrl
+        );
+
+      if (state.finalObjectUrl) {
+        URL.revokeObjectURL(
+          state.finalObjectUrl
+        );
+      }
+
+      state.finalObjectUrl =
+        URL.createObjectURL(
+          state.finalBlob
+        );
+
+      if (el.finalImage) {
+        el.finalImage.src =
+          state.finalObjectUrl;
+      }
+
+      showCard(el.finalCard);
+      showCard(el.printCard);
+      showCard(el.onlineCard);
+      showCard(el.newSessionCard);
+
+      hideCard(el.reviewCard);
+
+      scrollToElement(
+        el.finalCard
+      );
+
+      showToast(
+        "Foto final berhasil dibuat."
+      );
+
+    } catch (error) {
+      console.error(
+        "Final composition error:",
+        error
+      );
+
+      showToast(
+        "Gagal membuat foto final."
+      );
+
+    } finally {
+      hideLoading();
+    }
+  }
+
+  /* =======================================================
+     DOWNLOAD JPG
+     ======================================================= */
+
+  function downloadFinalJPG() {
+    if (!state.finalBlob) {
+      showToast(
+        "Foto final belum tersedia."
+      );
+
+      return;
     }
 
+    downloadBlob(
+      state.finalBlob,
+      `TERASYAQUB-${Date.now()}.jpg`
+    );
+  }
 
-    gif.addFrame(
-      await makeGIFFinalFrame(),
-      {
-        delay: 1500,
-        copy: true
-      }
+  /* =======================================================
+     GIF
+     ======================================================= */
+
+  async function createGIF() {
+    if (
+      !state.photos.length
+    ) {
+      showToast(
+        "Belum ada foto."
+      );
+
+      return;
+    }
+
+    if (!window.GIF) {
+      showToast(
+        "Library GIF belum berhasil dimuat."
+      );
+
+      return;
+    }
+
+    showLoading(
+      "Membuat GIF..."
     );
 
+    try {
+      const gif =
+        new GIF({
+          workers: 2,
+          quality: 10,
+          width: 900,
+          height: 1200,
 
-    gif.on(
-      "finished",
-      blob => {
+          workerScript:
+            "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"
+        });
 
-        gifBlob = blob;
+      for (
+        const photo of state.photos
+      ) {
+        const img =
+          await loadImage(photo);
 
-        const url =
-          URL.createObjectURL(
-            blob
+        const canvas =
+          document.createElement(
+            "canvas"
           );
 
-        gifPreview.src =
-          url;
+        canvas.width = 900;
+        canvas.height = 1200;
 
-        gifPreview.classList.remove(
-          "hidden"
+        const ctx =
+          canvas.getContext("2d");
+
+        ctx.fillStyle = "#ffffff";
+
+        ctx.fillRect(
+          0,
+          0,
+          900,
+          1200
         );
 
-        mediaArea.classList.remove(
-          "hidden"
+        drawImageCover(
+          ctx,
+          img,
+          0,
+          0,
+          900,
+          1200
         );
 
-        showMessage(
-          "GIF selesai dibuat."
-        );
+        /*
+          Template ikut dimasukkan
+          ke GIF jika tersedia.
+        */
 
+        if (state.templateImage) {
+          ctx.drawImage(
+            state.templateImage,
+            0,
+            0,
+            900,
+            1200
+          );
+        }
+
+        gif.addFrame(
+          canvas,
+          {
+            delay: 700,
+            copy: true
+          }
+        );
       }
-    );
 
+      gif.on(
+        "finished",
+        (blob) => {
+          state.gifBlob = blob;
 
-    gif.render();
+          if (state.gifObjectUrl) {
+            URL.revokeObjectURL(
+              state.gifObjectUrl
+            );
+          }
 
-  } catch (error) {
+          state.gifObjectUrl =
+            URL.createObjectURL(
+              blob
+            );
 
-    console.error(error);
+          if (el.gifPreview) {
+            el.gifPreview.src =
+              state.gifObjectUrl;
+          }
 
-    showMessage(
-      "Gagal membuat GIF."
-    );
+          showCard(
+            el.gifResultBox
+          );
 
+          hideLoading();
+
+          showToast(
+            "GIF berhasil dibuat."
+          );
+        }
+      );
+
+      gif.on(
+        "abort",
+        () => {
+          hideLoading();
+
+          showToast(
+            "Pembuatan GIF dibatalkan."
+          );
+        }
+      );
+
+      gif.render();
+
+    } catch (error) {
+      console.error(
+        "GIF error:",
+        error
+      );
+
+      hideLoading();
+
+      showToast(
+        "Gagal membuat GIF."
+      );
+    }
   }
 
-}
+  function downloadGIF() {
+    if (!state.gifBlob) {
+      showToast(
+        "GIF belum dibuat."
+      );
 
+      return;
+    }
 
-async function makeGIFFinalFrame() {
-
-  const img =
-    await loadImage(
-      finalImage.src
+    downloadBlob(
+      state.gifBlob,
+      `TERASYAQUB-${Date.now()}.gif`
     );
-
-  const canvas =
-    document.createElement(
-      "canvas"
-    );
-
-  canvas.width = 600;
-
-  canvas.height = 450;
-
-  const ctx =
-    canvas.getContext("2d");
-
-  ctx.drawImage(
-    img,
-    0,
-    0,
-    600,
-    450
-  );
-
-  return canvas;
-
-}
-
-
-/* =========================================================
-   11. VIDEO
-========================================================= */
-
-document
-  .getElementById("btnMakeVideo")
-  .addEventListener(
-    "click",
-    createVideo
-  );
-
-
-async function createVideo() {
-
-  if (!photos.length) {
-
-    showMessage(
-      "Belum ada foto."
-    );
-
-    return;
-
   }
 
+  /* =======================================================
+     VIDEO
+     ======================================================= */
 
-  try {
+  async function createVideo() {
+    if (
+      !state.photos.length
+    ) {
+      showToast(
+        "Belum ada foto."
+      );
 
-    showMessage(
+      return;
+    }
+
+    if (
+      !window.MediaRecorder
+    ) {
+      showToast(
+        "Browser ini tidak mendukung pembuatan video."
+      );
+
+      return;
+    }
+
+    showLoading(
       "Membuat video..."
     );
 
-
-    /*
-      Canvas + MediaRecorder.
-
-      Format:
-      WebM.
-      Browser modern Android/Chrome
-      biasanya mendukung WebM.
-    */
-
-    const canvas =
-      document.createElement(
-        "canvas"
-      );
-
-    canvas.width = 1280;
-
-    canvas.height = 720;
-
-    const ctx =
-      canvas.getContext("2d");
-
-
-    const stream =
-      canvas.captureStream(30);
-
-
-    let mimeType =
-      "video/webm;codecs=vp9";
-
-    if (
-      !MediaRecorder.isTypeSupported(
-        mimeType
-      )
-    ) {
-
-      mimeType =
-        "video/webm;codecs=vp8";
-
-    }
-
-
-    if (
-      !MediaRecorder.isTypeSupported(
-        mimeType
-      )
-    ) {
-
-      mimeType =
-        "video/webm";
-
-    }
-
-
-    const recorder =
-      new MediaRecorder(
-        stream,
-        {
-          mimeType
-        }
-      );
-
-
-    const chunks = [];
-
-
-    recorder.ondataavailable =
-      event => {
-
-        if (
-          event.data.size > 0
-        ) {
-
-          chunks.push(
-            event.data
-          );
-
-        }
-
-      };
-
-
-    const stopped =
-      new Promise(
-        resolve => {
-
-          recorder.onstop =
-            resolve;
-
-        }
-      );
-
-
-    recorder.start();
-
-
-    /*
-      Semua foto tampil bergantian.
-    */
-
-    for (
-      const photo of photos
-    ) {
-
-      const img =
-        await loadImage(photo);
-
-
-      const start =
-        Date.now();
-
-
-      while (
-        Date.now() - start <
-        1200
-      ) {
-
-        drawVideoFrame(
-          ctx,
-          canvas,
-          img
+    try {
+      const canvas =
+        document.createElement(
+          "canvas"
         );
 
-        await sleep(33);
+      canvas.width = 900;
+      canvas.height = 1200;
 
+      const ctx =
+        canvas.getContext("2d");
+
+      const stream =
+        canvas.captureStream(30);
+
+      let mimeType =
+        "video/webm;codecs=vp9";
+
+      if (
+        !MediaRecorder.isTypeSupported(
+          mimeType
+        )
+      ) {
+        mimeType =
+          "video/webm;codecs=vp8";
       }
 
+      if (
+        !MediaRecorder.isTypeSupported(
+          mimeType
+        )
+      ) {
+        mimeType =
+          "video/webm";
+      }
+
+      const recorder =
+        new MediaRecorder(
+          stream,
+          {
+            mimeType
+          }
+        );
+
+      const chunks = [];
+
+      recorder.ondataavailable =
+        (event) => {
+          if (
+            event.data &&
+            event.data.size
+          ) {
+            chunks.push(
+              event.data
+            );
+          }
+        };
+
+      const stopped =
+        new Promise(
+          (resolve) => {
+            recorder.onstop =
+              resolve;
+          }
+        );
+
+      recorder.start();
+
+      for (
+        const photo of state.photos
+      ) {
+        const img =
+          await loadImage(photo);
+
+        const start =
+          performance.now();
+
+        const duration =
+          900;
+
+        while (
+          performance.now() -
+            start <
+          duration
+        ) {
+          ctx.fillStyle =
+            "#ffffff";
+
+          ctx.fillRect(
+            0,
+            0,
+            900,
+            1200
+          );
+
+          drawImageCover(
+            ctx,
+            img,
+            0,
+            0,
+            900,
+            1200
+          );
+
+          if (
+            state.templateImage
+          ) {
+            ctx.drawImage(
+              state.templateImage,
+              0,
+              0,
+              900,
+              1200
+            );
+          }
+
+          await new Promise(
+            (resolve) =>
+              requestAnimationFrame(
+                resolve
+              )
+          );
+        }
+      }
+
+      recorder.stop();
+
+      await stopped;
+
+      state.videoBlob =
+        new Blob(
+          chunks,
+          {
+            type: mimeType
+          }
+        );
+
+      if (state.videoObjectUrl) {
+        URL.revokeObjectURL(
+          state.videoObjectUrl
+        );
+      }
+
+      state.videoObjectUrl =
+        URL.createObjectURL(
+          state.videoBlob
+        );
+
+      if (el.videoPreview) {
+        el.videoPreview.src =
+          state.videoObjectUrl;
+
+        el.videoPreview.controls =
+          true;
+      }
+
+      showCard(
+        el.videoResultBox
+      );
+
+      hideLoading();
+
+      showToast(
+        "Video berhasil dibuat."
+      );
+
+    } catch (error) {
+      console.error(
+        "Video error:",
+        error
+      );
+
+      hideLoading();
+
+      showToast(
+        "Gagal membuat video."
+      );
+    }
+  }
+
+  function downloadVideo() {
+    if (!state.videoBlob) {
+      showToast(
+        "Video belum dibuat."
+      );
+
+      return;
     }
 
+    downloadBlob(
+      state.videoBlob,
+      `TERASYAQUB-${Date.now()}.webm`
+    );
+  }
 
-    /*
-      Tampilkan final image.
-    */
+  /* =======================================================
+     PRINT
+     ======================================================= */
 
-    const finalImg =
-      await loadImage(
-        finalImage.src
-      );
+  const PAPER_SIZES = {
+    "4r": {
+      name: "4R",
+      width: 4,
+      height: 6,
+      unit: "in"
+    },
 
+    strip: {
+      name: "Photo Strip",
+      width: 2,
+      height: 6,
+      unit: "in"
+    },
 
-    const finalStart =
-      Date.now();
+    square: {
+      name: "Square",
+      width: 6,
+      height: 6,
+      unit: "in"
+    },
 
+    polaroid: {
+      name: "Polaroid",
+      width: 4,
+      height: 5,
+      unit: "in"
+    },
 
-    while (
-      Date.now() -
-      finalStart <
-      2000
-    ) {
+    a5: {
+      name: "A5",
+      width: 148,
+      height: 210,
+      unit: "mm"
+    },
 
-      drawVideoFrame(
-        ctx,
-        canvas,
-        finalImg
-      );
+    a4: {
+      name: "A4",
+      width: 210,
+      height: 297,
+      unit: "mm"
+    },
 
-      await sleep(33);
-
+    a3: {
+      name: "A3",
+      width: 297,
+      height: 420,
+      unit: "mm"
     }
+  };
 
+  function getPrintSettings() {
+    return {
+      paper:
+        el.paperSize?.value ||
+        "4r",
 
-    recorder.stop();
+      orientation:
+        el.printOrientation?.value ||
+        "portrait",
 
-    await stopped;
+      copies:
+        Number(
+          el.printCopies?.value ||
+          1
+        ),
 
-
-    videoBlob =
-      new Blob(
-        chunks,
-        {
-          type: mimeType
-        }
-      );
-
-
-    const url =
-      URL.createObjectURL(
-        videoBlob
-      );
-
-
-    videoPreview.src =
-      url;
-
-    videoPreview.classList.remove(
-      "hidden"
-    );
-
-    mediaArea.classList.remove(
-      "hidden"
-    );
-
-
-    showMessage(
-      "Video selesai dibuat."
-    );
-
-  } catch (error) {
-
-    console.error(error);
-
-    showMessage(
-      "Gagal membuat video. Coba gunakan Chrome."
-    );
-
+      marginMm:
+        Number(
+          el.printMargin?.value ||
+          0
+        )
+    };
   }
 
-}
+  function getPaperDimensions(
+    paperKey,
+    orientation
+  ) {
+    const paper =
+      PAPER_SIZES[
+        paperKey
+      ] ||
+      PAPER_SIZES["4r"];
 
+    let width =
+      paper.width;
 
-function drawVideoFrame(
-  ctx,
-  canvas,
-  img
-) {
-
-  ctx.fillStyle =
-    "#000";
-
-  ctx.fillRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-
-  const scale =
-    Math.max(
-      canvas.width / img.width,
-      canvas.height / img.height
-    );
-
-
-  const width =
-    img.width * scale;
-
-  const height =
-    img.height * scale;
-
-
-  ctx.drawImage(
-    img,
-    (canvas.width - width) / 2,
-    (canvas.height - height) / 2,
-    width,
-    height
-  );
-
-}
-
-
-/* =========================================================
-   12. SUPABASE UPLOAD
-========================================================= */
-
-async function uploadFile(
-  blob,
-  path,
-  contentType
-) {
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
-      .storage
-      .from(STORAGE_BUCKET)
-      .upload(
-        path,
-        blob,
-        {
-          contentType,
-          upsert: true
-        }
-      );
-
-
-  if (error) {
-
-    throw error;
-
-  }
-
-
-  return data;
-
-}
-
-
-/* =========================================================
-   13. SAVE EVERYTHING ONLINE
-========================================================= */
-
-async function saveAllOnline() {
-
-  if (!finalBlob) {
-
-    showMessage(
-      "Buat hasil akhir terlebih dahulu."
-    );
-
-    return;
-
-  }
-
-
-  hide(qrArea);
-
-  show(uploadStatus);
-
-  uploadProgress.style.width =
-    "5%";
-
-  uploadText.textContent =
-    "Menyiapkan upload...";
-
-
-  try {
-
-    /*
-      Cek Supabase
-    */
+    let height =
+      paper.height;
 
     if (
-      SUPABASE_URL.includes(
-        "GANTI-PROJECT"
-      )
+      orientation ===
+      "landscape"
     ) {
+      [
+        width,
+        height
+      ] = [
+        height,
+        width
+      ];
+    }
 
+    return {
+      width,
+      height,
+      unit: paper.unit,
+      name: paper.name
+    };
+  }
+
+  async function printBrowser() {
+    if (!state.finalBlob) {
+      showToast(
+        "Foto final belum tersedia."
+      );
+
+      return;
+    }
+
+    const settings =
+      getPrintSettings();
+
+    const paper =
+      getPaperDimensions(
+        settings.paper,
+        settings.orientation
+      );
+
+    const imageURL =
+      URL.createObjectURL(
+        state.finalBlob
+      );
+
+    /*
+      Membuat halaman print khusus.
+    */
+
+    const printWindow =
+      window.open(
+        "",
+        "_blank"
+      );
+
+    if (!printWindow) {
+      showToast(
+        "Popup diblokir browser. Izinkan popup untuk mencetak."
+      );
+
+      URL.revokeObjectURL(
+        imageURL
+      );
+
+      return;
+    }
+
+    const widthCSS =
+      paper.unit === "mm"
+        ? `${paper.width}mm`
+        : `${paper.width}in`;
+
+    const heightCSS =
+      paper.unit === "mm"
+        ? `${paper.height}mm`
+        : `${paper.height}in`;
+
+    const margin =
+      settings.marginMm;
+
+    const copiesHTML =
+      Array.from(
+        {
+          length:
+            settings.copies
+        }
+      )
+        .map(
+          () => `
+            <div class="print-page">
+              <img src="${imageURL}">
+            </div>
+          `
+        )
+        .join("");
+
+    printWindow.document.open();
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+
+        <title>
+          ${APP_NAME}
+        </title>
+
+        <style>
+
+          @page {
+            size:
+              ${widthCSS}
+              ${heightCSS};
+
+            margin:
+              ${margin}mm;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          html,
+          body {
+            margin: 0;
+            padding: 0;
+            background: white;
+          }
+
+          body {
+            font-family: Arial, sans-serif;
+          }
+
+          .print-page {
+            width:
+              ${widthCSS};
+
+            height:
+              ${heightCSS};
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            page-break-after: always;
+
+            overflow: hidden;
+          }
+
+          .print-page:last-child {
+            page-break-after: auto;
+          }
+
+          .print-page img {
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
+
+            display: block;
+          }
+
+        </style>
+      </head>
+
+      <body>
+        ${copiesHTML}
+
+        <script>
+
+          window.addEventListener(
+            "load",
+            function() {
+
+              setTimeout(
+                function() {
+                  window.print();
+
+                  setTimeout(
+                    function() {
+                      window.close();
+                    },
+                    1000
+                  );
+                },
+                500
+              );
+
+            }
+          );
+
+        <\/script>
+
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+
+    setStatus(
+      el.printStatus,
+      `Dialog print dibuka — ${paper.name}, ${settings.orientation}, ${settings.copies} copy.`,
+      "success"
+    );
+  }
+
+  async function printViaBridge() {
+    if (!state.finalDataUrl) {
+      showToast(
+        "Foto final belum tersedia."
+      );
+
+      return;
+    }
+
+    const settings =
+      getPrintSettings();
+
+    const paper =
+      getPaperDimensions(
+        settings.paper,
+        settings.orientation
+      );
+
+    setStatus(
+      el.printStatus,
+      "Menghubungkan ke Print Bridge...",
+      "info"
+    );
+
+    try {
+      const response =
+        await fetch(
+          `${PRINT_BRIDGE_URL}/print`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body: JSON.stringify({
+              imageDataUrl:
+                state.finalDataUrl,
+
+              paper:
+                settings.paper,
+
+              width:
+                paper.width,
+
+              height:
+                paper.height,
+
+              unit:
+                paper.unit,
+
+              orientation:
+                settings.orientation,
+
+              copies:
+                settings.copies,
+
+              marginMm:
+                settings.marginMm,
+
+              printerName:
+                PRINTER_NAME
+            })
+          }
+        );
+
+      const data =
+        await response.json()
+          .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+          `HTTP ${response.status}`
+        );
+      }
+
+      setStatus(
+        el.printStatus,
+        "Berhasil dikirim ke printer.",
+        "success"
+      );
+
+      showToast(
+        "Perintah print berhasil dikirim."
+      );
+
+    } catch (error) {
+      console.error(
+        "Print bridge error:",
+        error
+      );
+
+      setStatus(
+        el.printStatus,
+        `Print Bridge gagal: ${error.message}`,
+        "error"
+      );
+
+      showToast(
+        "Tidak dapat terhubung ke Print Bridge. Pastikan server berjalan."
+      );
+    }
+  }
+
+  async function printPhoto() {
+    if (!state.finalBlob) {
+      showToast(
+        "Buat foto final terlebih dahulu."
+      );
+
+      return;
+    }
+
+    const selectedMode =
+      el.printMode?.value ||
+      PRINT_MODE;
+
+    if (
+      selectedMode ===
+      "bridge"
+    ) {
+      await printViaBridge();
+    } else {
+      await printBrowser();
+    }
+  }
+
+  /* =======================================================
+     SUPABASE
+     ======================================================= */
+
+  function supabaseReady() {
+    return Boolean(
+      supabaseClient
+    );
+  }
+
+  function getResultPageURL(
+    sessionId
+  ) {
+    const base =
+      new URL(
+        "result.html",
+        window.location.href
+      );
+
+    base.searchParams.set(
+      "id",
+      sessionId
+    );
+
+    return base.href;
+  }
+
+  async function uploadFile(
+    path,
+    blob,
+    contentType
+  ) {
+    if (!supabaseReady()) {
       throw new Error(
         "Supabase belum dikonfigurasi."
       );
-
     }
 
-
-    if (
-      SUPABASE_ANON_KEY.includes(
-        "GANTI-ANON"
-      )
-    ) {
-
-      throw new Error(
-        "Supabase ANON KEY belum dikonfigurasi."
-      );
-
-    }
-
-
-    const id =
-      sessionId ||
-      generateSessionId();
-
-    sessionId = id;
-
-
-    /*
-      Upload FINAL PHOTO
-    */
-
-    uploadText.textContent =
-      "Upload foto...";
-
-    uploadProgress.style.width =
-      "25%";
-
-
-    const photoPath =
-      `${id}/final.jpg`;
-
-
-    await uploadFile(
-      finalBlob,
-      photoPath,
-      "image/jpeg"
-    );
-
-
-    /*
-      Upload GIF jika sudah dibuat
-    */
-
-    let gifPath = null;
-
-
-    if (gifBlob) {
-
-      uploadText.textContent =
-        "Upload GIF...";
-
-      uploadProgress.style.width =
-        "45%";
-
-
-      gifPath =
-        `${id}/result.gif`;
-
-
-      await uploadFile(
-        gifBlob,
-        gifPath,
-        "image/gif"
-      );
-
-    }
-
-
-    /*
-      Upload VIDEO jika sudah dibuat
-    */
-
-    let videoPath = null;
-
-
-    if (videoBlob) {
-
-      uploadText.textContent =
-        "Upload video...";
-
-      uploadProgress.style.width =
-        "65%";
-
-
-      videoPath =
-        `${id}/result.webm`;
-
-
-      await uploadFile(
-        videoBlob,
-        videoPath,
-        "video/webm"
-      );
-
-    }
-
-
-    /*
-      Upload foto individual
-    */
-
-    uploadText.textContent =
-      "Upload foto individual...";
-
-    uploadProgress.style.width =
-      "75%";
-
-
-    const photoPaths = [];
-
-
-    for (
-      let i = 0;
-      i < photos.length;
-      i++
-    ) {
-
-      const blob =
-        blobFromDataURL(
-          photos[i]
-        );
-
-
-      const path =
-        `${id}/photo-${i + 1}.jpg`;
-
-
-      await uploadFile(
-        blob,
-        path,
-        "image/jpeg"
-      );
-
-
-      photoPaths.push(path);
-
-    }
-
-
-    /*
-      Buat public URLs.
-    */
-
-    const finalPublicUrl =
-      getPublicUrl(
-        photoPath
-      );
-
-
-    const gifPublicUrl =
-      gifPath
-        ? getPublicUrl(gifPath)
-        : null;
-
-
-    const videoPublicUrl =
-      videoPath
-        ? getPublicUrl(videoPath)
-        : null;
-
-
-    const individualUrls =
-      photoPaths.map(
-        path =>
-          getPublicUrl(path)
-      );
-
-
-    uploadText.textContent =
-      "Menyimpan data sesi...";
-
-    uploadProgress.style.width =
-      "90%";
-
-
-    /*
-      Insert database.
-
-      Tabel:
-      photobooth_sessions
-    */
-
-    const {
-      error: dbError
-    } =
+    const result =
       await supabaseClient
-        .from(
-          "photobooth_sessions"
-        )
-        .insert({
-
-          id,
-
-          photo_count:
-            jumlahFoto,
-
-          final_photo_url:
-            finalPublicUrl,
-
-          gif_url:
-            gifPublicUrl,
-
-          video_url:
-            videoPublicUrl,
-
-          photo_urls:
-            individualUrls
-
-        });
-
-
-    if (dbError) {
-
-      throw dbError;
-
-    }
-
-
-    uploadProgress.style.width =
-      "100%";
-
-    uploadText.textContent =
-      "Selesai!";
-
-
-    /*
-      URL halaman hasil.
-
-      Jika aplikasi berada di:
-      https://domainanda.com/index.html
-
-      maka:
-      https://domainanda.com/result.html?id=...
-      
-      Untuk versi paling sederhana,
-      kita gunakan index.html?result=...
-      dan script akan mendeteksi mode hasil.
-    */
-
-    const baseUrl =
-      window.location.origin +
-      window.location.pathname
-        .replace(
-          /\/[^/]*$/,
-          "/"
+        .storage
+        .from(STORAGE_BUCKET)
+        .upload(
+          path,
+          blob,
+          {
+            contentType,
+            upsert: true
+          }
         );
 
+    if (result.error) {
+      throw result.error;
+    }
 
-    const url =
-      baseUrl +
-      "result.html?id=" +
-      encodeURIComponent(id);
+    const publicResult =
+      supabaseClient
+        .storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(
+          path
+        );
 
-
-    resultUrl.value =
-      url;
-
-
-    const openResult =
-      document.getElementById(
-        "openResult"
-      );
-
-    openResult.href =
-      url;
-
-
-    /*
-      QR
-    */
-
-    await QRCode.toCanvas(
-      qrCanvas,
-      url,
-      {
-        width: 280,
-
-        margin: 2,
-
-        errorCorrectionLevel:
-          "H"
-      }
-    );
-
-
-    show(qrArea);
-
-
-    showMessage(
-      "Berhasil disimpan online. QR Code siap."
-    );
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    uploadText.textContent =
-      "Gagal menyimpan.";
-
-    uploadProgress.style.width =
-      "0%";
-
-
-    showMessage(
-      "Gagal upload: " +
-      (
-        error.message ||
-        "Periksa konfigurasi Supabase."
-      ),
-      6000
-    );
-
+    return publicResult
+      .data
+      .publicUrl;
   }
 
-}
+  async function saveOnline() {
+    if (!state.finalBlob) {
+      showToast(
+        "Foto final belum tersedia."
+      );
 
+      return;
+    }
 
-/* =========================================================
-   PUBLIC URL
-========================================================= */
+    if (!supabaseReady()) {
+      setStatus(
+        el.uploadStatus,
+        "Supabase belum dikonfigurasi. Isi SUPABASE_URL dan SUPABASE_ANON_KEY di config/config.js.",
+        "warning"
+      );
 
-function getPublicUrl(path) {
+      showToast(
+        "Supabase belum dikonfigurasi."
+      );
 
-  const {
-    data
-  } =
-    supabaseClient
-      .storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(path);
+      return;
+    }
 
+    showLoading(
+      "Menyimpan foto ke online storage..."
+    );
 
-  return data.publicUrl;
+    setStatus(
+      el.uploadStatus,
+      "Mengupload foto...",
+      "info"
+    );
 
-}
+    try {
+      const sessionId =
+        state.sessionId ||
+        uuid();
 
+      state.sessionId =
+        sessionId;
 
-/* =========================================================
-   COPY URL
-========================================================= */
+      /*
+        Upload final JPG.
+      */
 
-document
-  .getElementById("btnCopyUrl")
-  .addEventListener(
-    "click",
-    async () => {
+      const finalPath =
+        `sessions/${sessionId}/final.jpg`;
 
-      try {
-
-        await navigator.clipboard.writeText(
-          resultUrl.value
+      const finalURL =
+        await uploadFile(
+          finalPath,
+          state.finalBlob,
+          "image/jpeg"
         );
 
-        showMessage(
-          "Link berhasil disalin."
+      /*
+        Upload setiap foto.
+      */
+
+      const photoURLs = [];
+
+      for (
+        let i = 0;
+        i < state.photos.length;
+        i++
+      ) {
+        setStatus(
+          el.uploadStatus,
+          `Mengupload foto ${i + 1} dari ${state.photos.length}...`,
+          "info"
         );
 
-      } catch {
+        const photoBlob =
+          dataURLToBlob(
+            state.photos[i]
+          );
 
-        resultUrl.select();
+        const photoPath =
+          `sessions/${sessionId}/photos/photo-${String(
+            i + 1
+          ).padStart(2, "0")}.jpg`;
+
+        const photoURL =
+          await uploadFile(
+            photoPath,
+            photoBlob,
+            "image/jpeg"
+          );
+
+        photoURLs.push(
+          photoURL
+        );
+      }
+
+      /*
+        Upload GIF jika sudah dibuat.
+      */
+
+      let gifURL = null;
+
+      if (state.gifBlob) {
+        setStatus(
+          el.uploadStatus,
+          "Mengupload GIF...",
+          "info"
+        );
+
+        gifURL =
+          await uploadFile(
+            `sessions/${sessionId}/result.gif`,
+            state.gifBlob,
+            "image/gif"
+          );
+      }
+
+      /*
+        Upload video jika sudah dibuat.
+      */
+
+      let videoURL = null;
+
+      if (state.videoBlob) {
+        setStatus(
+          el.uploadStatus,
+          "Mengupload video...",
+          "info"
+        );
+
+        videoURL =
+          await uploadFile(
+            `sessions/${sessionId}/result.webm`,
+            state.videoBlob,
+            "video/webm"
+          );
+      }
+
+      /*
+        Simpan metadata session.
+      */
+
+      const {
+        error
+      } =
+        await supabaseClient
+          .from(
+            "photobooth_sessions"
+          )
+          .upsert({
+            id: sessionId,
+
+            photo_count:
+              state.photos.length,
+
+            final_photo_url:
+              finalURL,
+
+            gif_url:
+              gifURL,
+
+            video_url:
+              videoURL,
+
+            photo_urls:
+              photoURLs
+          });
+
+      if (error) {
+        throw error;
+      }
+
+      /*
+        Buat URL hasil.
+      */
+
+      state.resultUrl =
+        getResultPageURL(
+          sessionId
+        );
+
+      if (el.resultUrl) {
+        el.resultUrl.value =
+          state.resultUrl;
+      }
+
+      generateQRCode(
+        state.resultUrl
+      );
+
+      setStatus(
+        el.uploadStatus,
+        "Berhasil disimpan online.",
+        "success"
+      );
+
+      hideLoading();
+
+      showCard(el.onlineCard);
+
+      showToast(
+        "Foto berhasil disimpan online."
+      );
+
+    } catch (error) {
+      console.error(
+        "Supabase upload error:",
+        error
+      );
+
+      setStatus(
+        el.uploadStatus,
+        `Gagal menyimpan online: ${error.message}`,
+        "error"
+      );
+
+      hideLoading();
+
+      showToast(
+        "Gagal menyimpan foto online."
+      );
+    }
+  }
+
+  /* =======================================================
+     QR CODE
+     ======================================================= */
+
+  function generateQRCode(
+    url
+  ) {
+    if (
+      !el.qrcode ||
+      !url
+    ) {
+      return;
+    }
+
+    el.qrcode.innerHTML = "";
+
+    if (!window.QRCode) {
+      showToast(
+        "Library QR Code belum dimuat."
+      );
+
+      return;
+    }
+
+    try {
+      new QRCode(
+        el.qrcode,
+        {
+          text: url,
+
+          width: 220,
+          height: 220,
+
+          colorDark:
+            "#000000",
+
+          colorLight:
+            "#ffffff",
+
+          correctLevel:
+            QRCode.CorrectLevel.H
+        }
+      );
+
+      showCard(
+        el.qrBox
+      );
+
+    } catch (error) {
+      console.error(
+        "QR Code error:",
+        error
+      );
+    }
+  }
+
+  async function copyResultURL() {
+    if (!state.resultUrl) {
+      showToast(
+        "URL hasil belum tersedia."
+      );
+
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        state.resultUrl
+      );
+
+      showToast(
+        "URL berhasil disalin."
+      );
+
+    } catch (error) {
+      /*
+        Fallback untuk browser lama.
+      */
+
+      if (el.resultUrl) {
+        el.resultUrl.select();
 
         document.execCommand(
           "copy"
         );
 
-        showMessage(
-          "Link berhasil disalin."
+        showToast(
+          "URL berhasil disalin."
         );
-
       }
-
     }
-  );
+  }
 
+  /* =======================================================
+     RESET SESSION
+     ======================================================= */
 
-/* =========================================================
-   NEW SESSION
-========================================================= */
+  function resetSession() {
+    stopCamera(false);
 
-document
-  .getElementById("btnNewSession")
-  .addEventListener(
-    "click",
-    () => {
+    if (state.finalObjectUrl) {
+      URL.revokeObjectURL(
+        state.finalObjectUrl
+      );
+    }
 
-      stopCamera();
+    if (state.gifObjectUrl) {
+      URL.revokeObjectURL(
+        state.gifObjectUrl
+      );
+    }
 
-      photos = [];
+    if (state.videoObjectUrl) {
+      URL.revokeObjectURL(
+        state.videoObjectUrl
+      );
+    }
 
-      currentPhotoIndex = 0;
+    state.photos = [];
 
-      finalBlob = null;
+    state.templateFile = null;
+    state.templateImage = null;
 
-      gifBlob = null;
+    state.finalBlob = null;
+    state.finalDataUrl = "";
+    state.finalObjectUrl = "";
 
-      videoBlob = null;
+    state.gifBlob = null;
+    state.gifObjectUrl = "";
 
-      sessionId = null;
+    state.videoBlob = null;
+    state.videoObjectUrl = "";
 
+    state.sessionId = null;
+    state.resultUrl = "";
 
-      finalImage.src = "";
+    state.isCapturing = false;
 
-      gifPreview.src = "";
+    if (el.templateFile) {
+      el.templateFile.value = "";
+    }
 
-      videoPreview.src = "";
+    if (el.templatePreview) {
+      el.templatePreview.src = "";
+      el.templatePreview.classList.add(
+        "hidden"
+      );
+    }
 
-      hide(resultArea);
+    if (el.templateEmpty) {
+      el.templateEmpty.classList.remove(
+        "hidden"
+      );
+    }
 
-      hide(gridArea);
+    if (el.finalImage) {
+      el.finalImage.src = "";
+    }
 
-      hide(cameraArea);
+    if (el.gifPreview) {
+      el.gifPreview.src = "";
+    }
 
-      hide(qrArea);
+    if (el.videoPreview) {
+      el.videoPreview.src = "";
+    }
 
-      hide(uploadStatus);
+    if (el.resultUrl) {
+      el.resultUrl.value = "";
+    }
 
-      hide(mediaArea);
+    if (el.qrcode) {
+      el.qrcode.innerHTML = "";
+    }
 
-      show(setupArea);
+    if (el.reviewGrid) {
+      el.reviewGrid.innerHTML = "";
+    }
 
-      showMessage(
-        "Sesi baru siap."
+    updatePhotoProgress();
+
+    hideCard(el.cameraCard);
+    hideCard(el.reviewCard);
+    hideCard(el.finalCard);
+    hideCard(el.printCard);
+    hideCard(el.onlineCard);
+    hideCard(el.newSessionCard);
+    hideCard(el.gifResultBox);
+    hideCard(el.videoResultBox);
+    hideCard(el.qrBox);
+
+    setStatus(
+      el.uploadStatus,
+      ""
+    );
+
+    setStatus(
+      el.printStatus,
+      ""
+    );
+
+    showCard(
+      el.setupCard
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+    showToast(
+      "Sesi baru siap digunakan."
+    );
+  }
+
+  /* =======================================================
+     INITIALIZATION
+     ======================================================= */
+
+  function readSettingsFromForm() {
+    state.photoCount =
+      Math.max(
+        1,
+        Math.min(
+          8,
+          Number(
+            el.photoCount?.value ||
+            4
+          )
+        )
       );
 
+    state.countdown =
+      Math.max(
+        1,
+        Number(
+          el.countdown?.value ||
+          3
+        )
+      );
+
+    state.cameraFacing =
+      el.cameraFacing?.value ||
+      "user";
+  }
+
+  function bindEvents() {
+    /*
+      Setup
+    */
+
+    el.photoCount?.addEventListener(
+      "change",
+      () => {
+        readSettingsFromForm();
+      }
+    );
+
+    el.countdown?.addEventListener(
+      "change",
+      () => {
+        readSettingsFromForm();
+      }
+    );
+
+    el.cameraFacing?.addEventListener(
+      "change",
+      () => {
+        readSettingsFromForm();
+
+        /*
+          Jika kamera sedang aktif,
+          restart kamera dengan kamera baru.
+        */
+
+        if (state.isCameraRunning) {
+          startCamera();
+        }
+      }
+    );
+
+    el.templateFile?.addEventListener(
+      "change",
+      handleTemplateChange
+    );
+
+    /*
+      Camera
+    */
+
+    el.startCameraBtn?.addEventListener(
+      "click",
+      async () => {
+        readSettingsFromForm();
+
+        await startCamera();
+
+        if (
+          state.isCameraRunning
+        ) {
+          /*
+            Setelah kamera aktif,
+            langsung mulai sesi foto.
+          */
+
+          await startPhotoSession();
+        }
+      }
+    );
+
+    el.captureBtn?.addEventListener(
+      "click",
+      async () => {
+        await startPhotoSession();
+      }
+    );
+
+    el.stopCameraBtn?.addEventListener(
+      "click",
+      () => {
+        stopCamera();
+      }
+    );
+
+    /*
+      Review
+    */
+
+    el.retakeAllBtn?.addEventListener(
+      "click",
+      () => {
+        retakeAllPhotos();
+      }
+    );
+
+    el.createFinalBtn?.addEventListener(
+      "click",
+      async () => {
+        await createFinalComposition();
+      }
+    );
+
+    /*
+      Final
+    */
+
+    el.downloadJpgBtn?.addEventListener(
+      "click",
+      downloadFinalJPG
+    );
+
+    /*
+      GIF
+    */
+
+    el.createGifBtn?.addEventListener(
+      "click",
+      async () => {
+        await createGIF();
+      }
+    );
+
+    el.downloadGifBtn?.addEventListener(
+      "click",
+      downloadGIF
+    );
+
+    /*
+      Video
+    */
+
+    el.createVideoBtn?.addEventListener(
+      "click",
+      async () => {
+        await createVideo();
+      }
+    );
+
+    el.downloadVideoBtn?.addEventListener(
+      "click",
+      downloadVideo
+    );
+
+    /*
+      Print
+    */
+
+    el.printBtn?.addEventListener(
+      "click",
+      async () => {
+        await printPhoto();
+      }
+    );
+
+    /*
+      Online
+    */
+
+    el.saveOnlineBtn?.addEventListener(
+      "click",
+      async () => {
+        await saveOnline();
+      }
+    );
+
+    el.copyResultUrlBtn?.addEventListener(
+      "click",
+      copyResultURL
+    );
+
+    /*
+      New session
+    */
+
+    el.newSessionBtn?.addEventListener(
+      "click",
+      () => {
+        resetSession();
+      }
+    );
+
+    /*
+      Print mode status
+    */
+
+    el.printMode?.addEventListener(
+      "change",
+      () => {
+        const mode =
+          el.printMode.value;
+
+        if (
+          mode === "bridge"
+        ) {
+          setStatus(
+            el.printStatus,
+            "Mode Wi-Fi/LAN Bridge aktif. Pastikan Print Bridge berjalan di komputer printer.",
+            "info"
+          );
+        } else {
+          setStatus(
+            el.printStatus,
+            "Mode Browser Print aktif.",
+            "info"
+          );
+        }
+      }
+    );
+
+    /*
+      Keyboard shortcut
+    */
+
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        /*
+          Space = capture
+        */
+
+        if (
+          event.code === "Space" &&
+          state.isCameraRunning &&
+          !state.isCapturing
+        ) {
+          const active =
+            document.activeElement;
+
+          if (
+            active &&
+            [
+              "INPUT",
+              "SELECT",
+              "TEXTAREA",
+              "BUTTON"
+            ].includes(
+              active.tagName
+            )
+          ) {
+            return;
+          }
+
+          event.preventDefault();
+
+          startPhotoSession();
+        }
+      }
+    );
+  }
+
+  function initialize() {
+    /*
+      Default settings
+    */
+
+    readSettingsFromForm();
+
+    /*
+      Hide result sections
+      until needed.
+    */
+
+    hideCard(el.cameraCard);
+    hideCard(el.reviewCard);
+    hideCard(el.finalCard);
+    hideCard(el.printCard);
+    hideCard(el.onlineCard);
+    hideCard(el.newSessionCard);
+    hideCard(el.gifResultBox);
+    hideCard(el.videoResultBox);
+    hideCard(el.qrBox);
+
+    updatePhotoProgress();
+
+    bindEvents();
+
+    /*
+      Inform user if Supabase
+      isn't configured.
+    */
+
+    if (!supabaseReady()) {
+      console.info(
+        "Supabase belum dikonfigurasi."
+      );
+
+      setStatus(
+        el.uploadStatus,
+        "Supabase belum dikonfigurasi. Foto tetap dapat dibuat dan didownload.",
+        "warning"
+      );
     }
-  );
 
-
-/* =========================================================
-   PAGE LOAD
-========================================================= */
-
-window.addEventListener(
-  "beforeunload",
-  () => {
-
-    stopCamera();
+    /*
+      Print mode default.
+    */
 
     if (
-      templateObjectUrl
+      el.printMode &&
+      !el.printMode.value
     ) {
-
-      URL.revokeObjectURL(
-        templateObjectUrl
-      );
-
+      el.printMode.value =
+        PRINT_MODE;
     }
 
+    console.log(
+      `${APP_NAME} initialized`
+    );
   }
-);
 
+  /* =======================================================
+     PAGE LIFECYCLE
+     ======================================================= */
 
-/* =========================================================
-   INITIAL GRID
-========================================================= */
+  document.addEventListener(
+    "DOMContentLoaded",
+    initialize
+  );
 
-renderPhotoGrid();
+  window.addEventListener(
+    "beforeunload",
+    () => {
+      stopCamera(false);
+
+      if (state.finalObjectUrl) {
+        URL.revokeObjectURL(
+          state.finalObjectUrl
+        );
+      }
+
+      if (state.gifObjectUrl) {
+        URL.revokeObjectURL(
+          state.gifObjectUrl
+        );
+      }
+
+      if (state.videoObjectUrl) {
+        URL.revokeObjectURL(
+          state.videoObjectUrl
+        );
+      }
+    }
+  );
+
+})();
