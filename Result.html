@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="Hasil foto PHOTOBOOTH TERASYAQUB"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0b0b0d"
+  >
+
+  <title>
+    Hasil Foto - PHOTOBOOTH TERASYAQUB
+  </title>
+
+
+  <!-- =====================================================
+       STYLE
+  ====================================================== -->
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+
+
+  <!-- =====================================================
+       SUPABASE
+  ====================================================== -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ></script>
+
+
+  <!-- =====================================================
+       CONFIG
+  ====================================================== -->
+
+  <script src="config/config.js"></script>
+
+</head>
+
+
+<body>
+
+
+  <!-- =====================================================
+       HEADER
+  ====================================================== -->
+
+  <header class="topbar">
+
+    <div class="brand">
+
+      <div class="brand-title">
+        PHOTOBOOTH TERASYAQUB
+      </div>
+
+      <div class="brand-subtitle">
+        BANJARMASIN.ID
+      </div>
+
+    </div>
+
+    <div class="status-area">
+
+      <span
+        id="onlineStatus"
+        class="status online"
+      >
+        Hasil Online
+      </span>
+
+    </div>
+
+  </header>
+
+
+  <!-- =====================================================
+       MAIN
+  ====================================================== -->
+
+  <main class="app-container">
+
+
+    <!-- ===================================================
+         LOADING
+    ==================================================== -->
+
+    <section
+      id="loadingCard"
+      class="card"
+    >
+
+      <div
+        class="new-session"
+      >
+
+        <div class="spinner"></div>
+
+        <h2 style="margin-top:20px;">
+          Memuat hasil foto...
+        </h2>
+
+        <p>
+          Mohon tunggu sebentar.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         RESULT
+    ==================================================== -->
+
+    <section
+      id="resultCard"
+      class="card"
+      hidden
+    >
+
+      <div class="card-header">
+
+        <h1>
+          LOVE STORY
+        </h1>
+
+        <p>
+          PHOTOBOOTH TERASYAQUB
+        </p>
+
+      </div>
+
+
+      <!-- ===============================================
+           FINAL PHOTO
+      ================================================ -->
+
+      <div class="final-preview">
+
+        <img
+          id="resultImage"
+          src=""
+          alt="Hasil Foto PHOTOBOOTH TERASYAQUB"
+        >
+
+      </div>
+
+
+      <!-- ===============================================
+           PHOTO INFORMATION
+      ================================================ -->
+
+      <div
+        id="resultInfo"
+        style="
+          margin-top:18px;
+          text-align:center;
+          color:#b7b7c0;
+          font-size:13px;
+        "
+      ></div>
+
+
+      <!-- ===============================================
+           ACTIONS
+      ================================================ -->
+
+      <div class="download-actions">
+
+        <a
+          id="downloadResultBtn"
+          class="btn btn-primary"
+          href="#"
+          download="TERASYAQUB-PHOTOBOOTH.jpg"
+        >
+          ⬇️ DOWNLOAD JPG
+        </a>
+
+
+        <button
+          id="shareResultBtn"
+          class="btn btn-secondary"
+          type="button"
+        >
+          📤 BAGIKAN
+        </button>
+
+      </div>
+
+
+      <!-- ===============================================
+           GIF
+      ================================================ -->
+
+      <div
+        id="resultGifBox"
+        class="media-result"
+        hidden
+      >
+
+        <h3>
+          🎞️ GIF
+        </h3>
+
+        <img
+          id="resultGif"
+          src=""
+          alt="GIF PHOTOBOOTH TERASYAQUB"
+        >
+
+        <a
+          id="downloadGifResultBtn"
+          class="btn btn-primary"
+          href="#"
+          download="TERASYAQUB-PHOTOBOOTH.gif"
+        >
+          ⬇️ DOWNLOAD GIF
+        </a>
+
+      </div>
+
+
+      <!-- ===============================================
+           VIDEO
+      ================================================ -->
+
+      <div
+        id="resultVideoBox"
+        class="media-result"
+        hidden
+      >
+
+        <h3>
+          🎬 VIDEO
+        </h3>
+
+        <video
+          id="resultVideo"
+          controls
+          playsinline
+          preload="metadata"
+        ></video>
+
+        <a
+          id="downloadVideoResultBtn"
+          class="btn btn-primary"
+          href="#"
+          download="TERASYAQUB-PHOTOBOOTH.webm"
+        >
+          ⬇️ DOWNLOAD VIDEO
+        </a>
+
+      </div>
+
+
+      <!-- ===============================================
+           PHOTO COLLECTION
+      ================================================ -->
+
+      <div
+        id="photoCollectionBox"
+        style="margin-top:30px;"
+        hidden
+      >
+
+        <div class="card-header">
+
+          <h2>
+            Foto Individu
+          </h2>
+
+          <p>
+            Semua foto dari sesi ini.
+          </p>
+
+        </div>
+
+
+        <div
+          id="photoCollection"
+          class="review-grid"
+        ></div>
+
+      </div>
+
+
+    </section>
+
+
+    <!-- ===================================================
+         ERROR
+    ==================================================== -->
+
+    <section
+      id="errorCard"
+      class="card"
+      hidden
+    >
+
+      <div class="new-session">
+
+        <h2>
+          😕 Hasil Tidak Ditemukan
+        </h2>
+
+        <p id="errorMessage">
+          Link hasil foto tidak valid atau hasil foto
+          sudah tidak tersedia.
+        </p>
+
+        <button
+          id="retryBtn"
+          class="btn btn-primary btn-large"
+          type="button"
+        >
+          🔄 COBA LAGI
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         NEW PHOTOBOOTH SESSION
+    ==================================================== -->
+
+    <section
+      id="newSessionCard"
+      class="card"
+    >
+
+      <div class="new-session">
+
+        <h2>
+          📸 PHOTOBOOTH TERASYAQUB
+        </h2>
+
+        <p>
+          Ingin mengambil foto lagi?
+        </p>
+
+        <a
+          id="newSessionLink"
+          href="index.html"
+          class="btn btn-primary btn-large"
+        >
+          📸 MULAI SESI BARU
+        </a>
+
+      </div>
+
+    </section>
+
+
+  </main>
+
+
+  <!-- =====================================================
+       FOOTER
+  ====================================================== -->
+
+  <footer class="footer">
+
+    <div>
+      PHOTOBOOTH TERASYAQUB
+    </div>
+
+    <div>
+      BANJARMASIN.ID
+    </div>
+
+    <div>
+      LOVE STORY
+    </div>
+
+  </footer>
+
+
+  <!-- =====================================================
+       RESULT JAVASCRIPT
+  ====================================================== -->
+
+  <script>
+
+    /*
+     * =====================================================
+     * TERASYAQUB PHOTOBOOTH
+     * RESULT PAGE
+     * =====================================================
+     */
+
+
+    /* =====================================================
+       CONFIG
+    ====================================================== */
+
+    const CONFIG =
+      window.TERASYAQUB_CONFIG || {};
+
+
+    const SUPABASE_URL =
+      CONFIG.SUPABASE_URL || "";
+
+
+    const SUPABASE_ANON_KEY =
+      CONFIG.SUPABASE_ANON_KEY || "";
+
+
+    /* =====================================================
+       ELEMENTS
+    ====================================================== */
+
+    const loadingCard =
+      document.getElementById("loadingCard");
+
+
+    const resultCard =
+      document.getElementById("resultCard");
+
+
+    const errorCard =
+      document.getElementById("errorCard");
+
+
+    const errorMessage =
+      document.getElementById("errorMessage");
+
+
+    const resultImage =
+      document.getElementById("resultImage");
+
+
+    const downloadResultBtn =
+      document.getElementById("downloadResultBtn");
+
+
+    const shareResultBtn =
+      document.getElementById("shareResultBtn");
+
+
+    const resultInfo =
+      document.getElementById("resultInfo");
+
+
+    const resultGifBox =
+      document.getElementById("resultGifBox");
+
+
+    const resultGif =
+      document.getElementById("resultGif");
+
+
+    const downloadGifResultBtn =
+      document.getElementById(
+        "downloadGifResultBtn"
+      );
+
+
+    const resultVideoBox =
+      document.getElementById(
+        "resultVideoBox"
+      );
+
+
+    const resultVideo =
+      document.getElementById(
+        "resultVideo"
+      );
+
+
+    const downloadVideoResultBtn =
+      document.getElementById(
+        "downloadVideoResultBtn"
+      );
+
+
+    const photoCollectionBox =
+      document.getElementById(
+        "photoCollectionBox"
+      );
+
+
+    const photoCollection =
+      document.getElementById(
+        "photoCollection"
+      );
+
+
+    const retryBtn =
+      document.getElementById(
+        "retryBtn"
+      );
+
+
+    /* =====================================================
+       SUPABASE CLIENT
+    ====================================================== */
+
+    let supabaseClient = null;
+
+
+    if (
+      SUPABASE_URL &&
+      SUPABASE_ANON_KEY &&
+      !SUPABASE_URL.includes(
+        "MASUKKAN_SUPABASE"
+      ) &&
+      !SUPABASE_ANON_KEY.includes(
+        "MASUKKAN_SUPABASE"
+      )
+    ) {
+
+      supabaseClient =
+        window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY
+        );
+
+    }
+
+
+    /* =====================================================
+       GET SESSION ID
+    ====================================================== */
+
+    function getSessionId() {
+
+      const params =
+        new URLSearchParams(
+          window.location.search
+        );
+
+
+      return params.get("id");
+
+    }
+
+
+    /* =====================================================
+       SHOW ERROR
+    ====================================================== */
+
+    function showError(message) {
+
+      loadingCard.hidden = true;
+
+      resultCard.hidden = true;
+
+      errorCard.hidden = false;
+
+      errorMessage.textContent =
+        message ||
+        "Hasil foto tidak ditemukan.";
+
+    }
+
+
+    /* =====================================================
+       SHOW RESULT
+    ====================================================== */
+
+    function showResult() {
+
+      loadingCard.hidden = true;
+
+      errorCard.hidden = true;
+
+      resultCard.hidden = false;
+
+    }
+
+
+    /* =====================================================
+       FORMAT DATE
+    ====================================================== */
+
+    function formatDate(dateValue) {
+
+      if (!dateValue) {
+
+        return "";
+
+      }
+
+
+      const date =
+        new Date(dateValue);
+
+
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+
+        return "";
+
+      }
+
+
+      return date.toLocaleString(
+        "id-ID",
+        {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }
+      );
+
+    }
+
+
+    /* =====================================================
+       LOAD SESSION
+    ====================================================== */
+
+    async function loadSession() {
+
+      const sessionId =
+        getSessionId();
+
+
+      if (!sessionId) {
+
+        showError(
+          "ID hasil foto tidak ditemukan pada link."
+        );
+
+        return;
+
+      }
+
+
+      if (!supabaseClient) {
+
+        showError(
+          "Supabase belum dikonfigurasi. Periksa file config/config.js."
+        );
+
+        return;
+
+      }
+
+
+      try {
+
+        const {
+          data,
+          error
+        } =
+          await supabaseClient
+
+            .from(
+              "photobooth_sessions"
+            )
+
+            .select("*")
+
+            .eq(
+              "id",
+              sessionId
+            )
+
+            .single();
+
+
+        if (error) {
+
+          console.error(
+            error
+          );
+
+          showError(
+            "Data hasil foto tidak ditemukan."
+          );
+
+          return;
+
+        }
+
+
+        if (!data) {
+
+          showError(
+            "Hasil foto tidak tersedia."
+          );
+
+          return;
+
+        }
+
+
+        renderSession(
+          data
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+
+        showError(
+          "Terjadi kesalahan saat mengambil hasil foto."
+        );
+
+      }
+
+    }
+
+
+    /* =====================================================
+       RENDER SESSION
+    ====================================================== */
+
+    function renderSession(
+      session
+    ) {
+
+      /* ===============================================
+         FINAL IMAGE
+      ================================================ */
+
+      if (
+        session.final_photo_url
+      ) {
+
+        resultImage.src =
+          session.final_photo_url;
+
+
+        downloadResultBtn.href =
+          session.final_photo_url;
+
+      }
+
+
+      /* ===============================================
+         INFORMATION
+      ================================================ */
+
+      const photoCount =
+        session.photo_count ||
+        0;
+
+
+      const createdAt =
+        formatDate(
+          session.created_at
+        );
+
+
+      let infoText =
+        "";
+
+
+      if (photoCount) {
+
+        infoText +=
+          `${photoCount} foto`;
+
+      }
+
+
+      if (createdAt) {
+
+        if (infoText) {
+
+          infoText +=
+            " • ";
+
+        }
+
+
+        infoText +=
+          createdAt;
+
+      }
+
+
+      resultInfo.textContent =
+        infoText;
+
+
+      /* ===============================================
+         GIF
+      ================================================ */
+
+      if (
+        session.gif_url
+      ) {
+
+        resultGif.src =
+          session.gif_url;
+
+
+        downloadGifResultBtn.href =
+          session.gif_url;
+
+
+        resultGifBox.hidden =
+          false;
+
+      }
+
+
+      /* ===============================================
+         VIDEO
+      ================================================ */
+
+      if (
+        session.video_url
+      ) {
+
+        resultVideo.src =
+          session.video_url;
+
+
+        downloadVideoResultBtn.href =
+          session.video_url;
+
+
+        resultVideoBox.hidden =
+          false;
+
+      }
+
+
+      /* ===============================================
+         INDIVIDUAL PHOTOS
+      ================================================ */
+
+      renderPhotoCollection(
+        session.photo_urls
+      );
+
+
+      /* ===============================================
+         SHOW
+      ================================================ */
+
+      showResult();
+
+    }
+
+
+    /* =====================================================
+       RENDER PHOTO COLLECTION
+    ====================================================== */
+
+    function renderPhotoCollection(
+      photoUrls
+    ) {
+
+      if (!photoUrls) {
+
+        return;
+
+      }
+
+
+      let urls = [];
+
+
+      if (
+        Array.isArray(
+          photoUrls
+        )
+      ) {
+
+        urls =
+          photoUrls;
+
+      } else if (
+        typeof photoUrls ===
+        "object"
+      ) {
+
+        urls =
+          Object.values(
+            photoUrls
+          );
+
+      }
+
+
+      urls =
+        urls.filter(
+          item =>
+            typeof item ===
+            "string" &&
+            item.length > 0
+        );
+
+
+      if (!urls.length) {
+
+        return;
+
+      }
+
+
+      photoCollection.innerHTML =
+        "";
+
+
+      urls.forEach(
+        (
+          url,
+          index
+        ) => {
+
+          const item =
+            document.createElement(
+              "div"
+            );
+
+
+          item.className =
+            "review-item";
+
+
+          const img =
+            document.createElement(
+              "img"
+            );
+
+
+          img.src =
+            url;
+
+
+          img.alt =
+            `Foto ${index + 1}`;
+
+
+          const number =
+            document.createElement(
+              "div"
+            );
+
+
+          number.className =
+            "review-item-number";
+
+
+          number.textContent =
+            `Foto ${index + 1}`;
+
+
+          item.appendChild(
+            img
+          );
+
+
+          item.appendChild(
+            number
+          );
+
+
+          photoCollection.appendChild(
+            item
+          );
+
+        }
+      );
+
+
+      photoCollectionBox.hidden =
+        false;
+
+    }
+
+
+    /* =====================================================
+       SHARE
+    ====================================================== */
+
+    shareResultBtn.addEventListener(
+      "click",
+      async () => {
+
+        const shareData = {
+
+          title:
+            "PHOTOBOOTH TERASYAQUB",
+
+          text:
+            "Hasil foto PHOTOBOOTH TERASYAQUB",
+
+          url:
+            window.location.href
+
+        };
+
+
+        try {
+
+          if (
+            navigator.share
+          ) {
+
+            await navigator.share(
+              shareData
+            );
+
+            return;
+
+          }
+
+
+          await navigator.clipboard.writeText(
+            window.location.href
+          );
+
+
+          alert(
+            "Link hasil foto berhasil disalin."
+          );
+
+
+        } catch (error) {
+
+          console.log(
+            "Share dibatalkan.",
+            error
+          );
+
+        }
+
+      }
+    );
+
+
+    /* =====================================================
+       RETRY
+    ====================================================== */
+
+    retryBtn.addEventListener(
+      "click",
+      () => {
+
+        window.location.reload();
+
+      }
+    );
+
+
+    /* =====================================================
+       START
+    ====================================================== */
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+
+        loadSession();
+
+      }
+    );
+
+  </script>
+
+
+</body>
+
+</html>
