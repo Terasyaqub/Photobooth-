@@ -1,885 +1,168 @@
 <!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
-  >
-
-  <meta
-    name="description"
-    content="TERASYAQUB PHOTOBOOTH - Photobooth digital dengan kamera, template, GIF, video, QR dan Wi-Fi printing."
-  >
-
-  <meta name="theme-color" content="#111111">
-
-  <title>TERASYAQUB PHOTOBOOTH</title>
-
-  <!-- CSS -->
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- QR Code -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
-  <!-- GIF Generator -->
-  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
-
-  <!-- Configuration -->
-  <script src="config/config.js"></script>
-</head>
-
-<body>
-
-  <!-- =====================================================
-       HEADER
-  ====================================================== -->
-  <header class="topbar">
-
-    <div class="brand">
-      <div class="brand-title">
-        PHOTOBOOTH TERASYAQUB
-      </div>
-
-      <div class="brand-subtitle">
-        BANJARMASIN.ID
-      </div>
-    </div>
-
-    <div class="status-area">
-
-      <span id="cameraStatus" class="status offline">
-        Kamera belum aktif
-      </span>
-
-      <span id="onlineStatus" class="status offline">
-        Offline
-      </span>
-
-    </div>
-
-  </header>
-
-
-  <!-- =====================================================
-       MAIN APP
-  ====================================================== -->
-  <main class="app-container">
-
-    <!-- ===================================================
-         SETUP
-    ==================================================== -->
-    <section id="setupCard" class="card">
-
-      <div class="card-header">
-        <h1>PHOTOBOOTH TERASYAQUB</h1>
-
-        <p>
-          Atur sesi foto sebelum memulai.
-        </p>
-      </div>
-
-
-      <div class="settings-grid">
-
-        <!-- JUMLAH FOTO -->
-        <div class="setting-box">
-
-          <label for="photoCount">
-            Jumlah Foto
-          </label>
-
-          <select id="photoCount">
-
-            <option value="1">1 Foto</option>
-            <option value="2">2 Foto</option>
-            <option value="3">3 Foto</option>
-            <option value="4" selected>4 Foto</option>
-            <option value="5">5 Foto</option>
-            <option value="6">6 Foto</option>
-            <option value="7">7 Foto</option>
-            <option value="8">8 Foto</option>
-
-          </select>
-
-        </div>
-
-
-        <!-- COUNTDOWN -->
-        <div class="setting-box">
-
-          <label for="countdown">
-
-            Countdown
-
-          </label>
-
-          <select id="countdown">
-
-            <option value="3" selected>
-              3 Detik
-            </option>
-
-            <option value="5">
-              5 Detik
-            </option>
-
-            <option value="10">
-              10 Detik
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- CAMERA -->
-        <div class="setting-box">
-
-          <label for="cameraFacing">
-
-            Kamera
-
-          </label>
-
-          <select id="cameraFacing">
-
-            <option value="user" selected>
-              Kamera Depan
-            </option>
-
-            <option value="environment">
-              Kamera Belakang
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- TEMPLATE -->
-        <div class="setting-box">
-
-          <label for="templateFile">
-
-            Template
-
-          </label>
-
-          <input
-            id="templateFile"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-          >
-
-        </div>
-
-      </div>
-
-
-      <!-- TEMPLATE PREVIEW -->
-      <div class="template-preview">
-
-        <div class="preview-title">
-          Template
-        </div>
-
-        <img
-          id="templatePreview"
-          class="template-preview-image"
-          alt="Preview Template"
-          hidden
-        >
-
-        <div
-          id="templateEmpty"
-          class="template-empty"
-        >
-          Belum ada template
-        </div>
-
-      </div>
-
-
-      <!-- START -->
-      <div class="setup-actions">
-
-        <button
-          id="startCameraBtn"
-          class="btn btn-primary btn-large"
-          type="button"
-        >
-          AKTIFKAN KAMERA
-        </button>
-
-      </div>
-
-    </section>
-
-
-    <!-- ===================================================
-         CAMERA
-    ==================================================== -->
-    <section
-      id="cameraCard"
-      class="card"
-      hidden
-    >
-
-      <div class="card-header">
-
-        <h2>
-          Siap Foto
-        </h2>
-
-        <p id="photoProgress">
-          Foto 1 dari 4
-        </p>
-
-      </div>
-
-
-      <!-- CAMERA VIEW -->
-      <div class="camera-wrapper">
-
-        <video
-          id="cameraVideo"
-          autoplay
-          playsinline
-          muted
-        ></video>
-
-        <canvas
-          id="cameraCanvas"
-          hidden
-        ></canvas>
-
-
-        <!-- COUNTDOWN OVERLAY -->
-        <div
-          id="countdownOverlay"
-          class="countdown-overlay"
-          hidden
-        >
-          <span id="countdownNumber">
-            3
-          </span>
-        </div>
-
-
-        <!-- CAMERA FRAME -->
-        <div
-          id="cameraFrame"
-          class="camera-frame"
-        ></div>
-
-      </div>
-
-
-      <!-- CAMERA CONTROLS -->
-      <div class="camera-controls">
-
-        <button
-          id="captureBtn"
-          class="btn btn-primary btn-large"
-          type="button"
-        >
-          📸 AMBIL FOTO
-        </button>
-
-        <button
-          id="stopCameraBtn"
-          class="btn btn-secondary"
-          type="button"
-        >
-          MATIKAN KAMERA
-        </button>
-
-      </div>
-
-
-      <!-- CURRENT PHOTO -->
-      <div class="current-photo-info">
-
-        <span>
-          Foto:
-        </span>
-
-        <strong id="currentPhotoNumber">
-          1 / 4
-        </strong>
-
-      </div>
-
-    </section>
-
-
-    <!-- ===================================================
-         REVIEW
-    ==================================================== -->
-    <section
-      id="reviewCard"
-      class="card"
-      hidden
-    >
-
-      <div class="card-header">
-
-        <h2>
-          Review Foto
-        </h2>
-
-        <p>
-          Periksa foto sebelum membuat hasil akhir.
-        </p>
-
-      </div>
-
-
-      <!-- PHOTO GRID -->
-      <div
-        id="reviewGrid"
-        class="review-grid"
-      ></div>
-
-
-      <!-- REVIEW ACTIONS -->
-      <div class="review-actions">
-
-        <button
-          id="retakeAllBtn"
-          class="btn btn-secondary"
-          type="button"
-        >
-          🔄 ULANG SEMUA
-        </button>
-
-        <button
-          id="createFinalBtn"
-          class="btn btn-primary btn-large"
-          type="button"
-        >
-          ✨ BUAT HASIL AKHIR
-        </button>
-
-      </div>
-
-    </section>
-
-
-    <!-- ===================================================
-         FINAL RESULT
-    ==================================================== -->
-    <section
-      id="finalCard"
-      class="card"
-      hidden
-    >
-
-      <div class="card-header">
-
-        <h2>
-          LOVE STORY
-        </h2>
-
-        <p>
-          Hasil akhir PHOTOBOOTH TERASYAQUB
-        </p>
-
-      </div>
-
-
-      <!-- FINAL IMAGE -->
-      <div class="final-preview">
-
-        <img
-          id="finalImage"
-          alt="Hasil Foto"
-        >
-
-      </div>
-
-
-      <!-- DOWNLOAD -->
-      <div class="download-actions">
-
-        <a
-          id="downloadJpgBtn"
-          class="btn btn-primary"
-          href="#"
-          download="TERASYAQUB-PHOTOBOOTH.jpg"
-        >
-          ⬇️ DOWNLOAD JPG
-        </a>
-
-
-        <button
-          id="createGifBtn"
-          class="btn btn-secondary"
-          type="button"
-        >
-          🎞️ BUAT GIF
-        </button>
-
-
-        <button
-          id="createVideoBtn"
-          class="btn btn-secondary"
-          type="button"
-        >
-          🎬 BUAT VIDEO
-        </button>
-
-      </div>
-
-
-      <!-- GIF RESULT -->
-      <div
-        id="gifResultBox"
-        class="media-result"
-        hidden
-      >
-
-        <h3>
-          GIF
-        </h3>
-
-        <img
-          id="gifPreview"
-          alt="GIF hasil"
-        >
-
-        <a
-          id="downloadGifBtn"
-          class="btn btn-primary"
-          href="#"
-          download="TERASYAQUB-PHOTOBOOTH.gif"
-        >
-          ⬇️ DOWNLOAD GIF
-        </a>
-
-      </div>
-
-
-      <!-- VIDEO RESULT -->
-      <div
-        id="videoResultBox"
-        class="media-result"
-        hidden
-      >
-
-        <h3>
-          VIDEO
-        </h3>
-
-        <video
-          id="videoPreview"
-          controls
-          playsinline
-        ></video>
-
-        <a
-          id="downloadVideoBtn"
-          class="btn btn-primary"
-          href="#"
-          download="TERASYAQUB-PHOTOBOOTH.webm"
-        >
-          ⬇️ DOWNLOAD VIDEO
-        </a>
-
-      </div>
-
-    </section>
-
-
-    <!-- ===================================================
-         PRINT PANEL
-    ==================================================== -->
-    <section
-      id="printCard"
-      class="card"
-      hidden
-    >
-
-      <div class="card-header">
-
-        <h2>
-          🖨️ PRINT FOTO
-        </h2>
-
-        <p>
-          Cetak hasil foto melalui printer USB atau Wi-Fi.
-        </p>
-
-      </div>
-
-
-      <div class="print-settings">
-
-        <!-- PAPER -->
-        <div class="setting-box">
-
-          <label for="paperSize">
-            Ukuran Kertas
-          </label>
-
-          <select id="paperSize">
-
-            <option value="4r" selected>
-              4R — 4 × 6 inch
-            </option>
-
-            <option value="strip">
-              Photo Strip — 2 × 6 inch
-            </option>
-
-            <option value="square">
-              Square — 3 × 3 inch
-            </option>
-
-            <option value="polaroid">
-              Polaroid — 2.7 × 4 inch
-            </option>
-
-            <option value="a5">
-              A5 — 148 × 210 mm
-            </option>
-
-            <option value="a4">
-              A4 — 210 × 297 mm
-            </option>
-
-            <option value="a3">
-              A3 — 297 × 420 mm
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- ORIENTATION -->
-        <div class="setting-box">
-
-          <label for="printOrientation">
-            Orientasi
-          </label>
-
-          <select id="printOrientation">
-
-            <option value="portrait" selected>
-              Portrait
-            </option>
-
-            <option value="landscape">
-              Landscape
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- COPIES -->
-        <div class="setting-box">
-
-          <label for="printCopies">
-            Jumlah Cetak
-          </label>
-
-          <select id="printCopies">
-
-            <option value="1" selected>
-              1 Copy
-            </option>
-
-            <option value="2">
-              2 Copy
-            </option>
-
-            <option value="3">
-              3 Copy
-            </option>
-
-            <option value="4">
-              4 Copy
-            </option>
-
-            <option value="5">
-              5 Copy
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- MARGIN -->
-        <div class="setting-box">
-
-          <label for="printMargin">
-            Margin
-          </label>
-
-          <select id="printMargin">
-
-            <option value="0" selected>
-              0 mm
-            </option>
-
-            <option value="2">
-              2 mm
-            </option>
-
-            <option value="5">
-              5 mm
-            </option>
-
-            <option value="10">
-              10 mm
-            </option>
-
-          </select>
-
-        </div>
-
-      </div>
-
-
-      <!-- PRINT MODE -->
-      <div class="print-mode-box">
-
-        <label for="printMode">
-
-          Mode Printer
-
-        </label>
-
-        <select id="printMode">
-
-          <option value="browser" selected>
-            Browser Print
-          </option>
-
-          <option value="bridge">
-            Wi-Fi / LAN Print Bridge
-          </option>
-
-        </select>
-
-        <small>
-          Browser Print membuka dialog printer.
-          Mode Bridge dapat mengirim perintah cetak ke PC
-          printer melalui jaringan lokal.
-        </small>
-
-      </div>
-
-
-      <!-- PRINT BUTTON -->
-      <div class="print-actions">
-
-        <button
-          id="printBtn"
-          class="btn btn-primary btn-large"
-          type="button"
-        >
-          🖨️ CETAK FOTO
-        </button>
-
-      </div>
-
-
-      <!-- PRINT STATUS -->
-      <div
-        id="printStatus"
-        class="print-status"
-      ></div>
-
-    </section>
-
-
-    <!-- ===================================================
-         ONLINE / SUPABASE
-    ==================================================== -->
-    <section
-      id="onlineCard"
-      class="card"
-      hidden
-    >
-
-      <div class="card-header">
-
-        <h2>
-          ☁️ HASIL ONLINE
-        </h2>
-
-        <p>
-          Simpan hasil ke Supabase dan buat QR Code.
-        </p>
-
-      </div>
-
-
-      <!-- SAVE BUTTON -->
-      <div class="online-actions">
-
-        <button
-          id="saveOnlineBtn"
-          class="btn btn-primary btn-large"
-          type="button"
-        >
-          ☁️ SIMPAN ONLINE
-        </button>
-
-      </div>
-
-
-      <!-- UPLOAD STATUS -->
-      <div
-        id="uploadStatus"
-        class="upload-status"
-      ></div>
-
-
-      <!-- QR -->
-      <div
-        id="qrBox"
-        class="qr-box"
-        hidden
-      >
-
-        <h3>
-          QR HASIL FOTO
-        </h3>
-
-        <div
-          id="qrcode"
-          class="qrcode"
-        ></div>
-
-        <p>
-          Scan QR untuk melihat hasil foto.
-        </p>
-
-        <input
-          id="resultUrl"
-          type="text"
-          readonly
-        >
-
-        <button
-          id="copyResultUrlBtn"
-          class="btn btn-secondary"
-          type="button"
-        >
-          📋 SALIN LINK
-        </button>
-
-      </div>
-
-    </section>
-
-
-    <!-- ===================================================
-         NEW SESSION
-    ==================================================== -->
-    <section
-      id="newSessionCard"
-      class="card"
-      hidden
-    >
-
-      <div class="new-session">
-
-        <h2>
-          Sesi Selesai 🎉
-        </h2>
-
-        <p>
-          Terima kasih telah menggunakan
-          PHOTOBOOTH TERASYAQUB.
-        </p>
-
-        <button
-          id="newSessionBtn"
-          class="btn btn-primary btn-large"
-          type="button"
-        >
-          📸 SESI BARU
-        </button>
-
-      </div>
-
-    </section>
-
-  </main>
-
-
-  <!-- =====================================================
-       GLOBAL LOADING
-  ====================================================== -->
-  <div
-    id="loadingOverlay"
-    class="loading-overlay"
-    hidden
-  >
-
-    <div class="loading-box">
-
-      <div class="spinner"></div>
-
-      <div id="loadingText">
-        Memproses...
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- =====================================================
-       ERROR / NOTIFICATION
-  ====================================================== -->
-  <div
-    id="toast"
-    class="toast"
-    hidden
-  >
-    <span id="toastMessage">
-      Pesan
-    </span>
-  </div>
-
-
-  <!-- =====================================================
-       FOOTER
-  ====================================================== -->
-  <footer class="footer">
-
-    <div>
-      PHOTOBOOTH TERASYAQUB
-    </div>
-
-    <div>
-      BANJARMASIN.ID
-    </div>
-
-    <div>
-      LOVE STORY
-    </div>
-
-  </footer>
-
-
-  <!-- =====================================================
-       APPLICATION JAVASCRIPT
-  ====================================================== -->
-  <script src="script.js"></script>
-
-</body>
-</html>
+ <html lang="id">
+ <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>TERASYAQUB Photobooth — Banjarmasin</title>
+   <!-- Supabase -->
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+   <!-- QR Code -->
+   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+   <!-- GIF Encoder -->
+   <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+   <!-- MP4/WebM video recorder -->
+   <script src="https://cdn.jsdelivr.net/npm/webm-writer@1.0.0/dist/webm-writer.min.js"></script>
+   <link rel="stylesheet" href="style.css">
+ </head>
+ <body>
+ <div class="app">
+   <!-- HEADER -->
+   <header class="brand">
+     <div class="brand-logo">📸</div>
+     <div>
+       <h1>TERASYAQUB</h1>
+       <p>Banjarmasin • Photobooth</p>
+     </div>
+   </header>
+   <!-- SETUP -->
+   <section id="setupArea" class="panel">
+     <h2>Pengaturan Photobooth</h2>
+     <div class="setting-grid">
+       <div class="setting-card">
+         <label>Jumlah Foto</label>
+         <select id="jumlahFoto">
+           <option value="1">1 Foto</option>
+           <option value="2">2 Foto</option>
+           <option value="3">3 Foto</option>
+           <option value="4" selected>4 Foto</option>
+           <option value="5">5 Foto</option>
+           <option value="6">6 Foto</option>
+           <option value="7">7 Foto</option>
+           <option value="8">8 Foto</option>
+         </select>
+       </div>
+       <div class="setting-card">
+         <label>Countdown</label>
+         <select id="durasiCountdown">
+           <option value="3">3 detik</option>
+           <option value="5" selected>5 detik</option>
+           <option value="10">10 detik</option>
+         </select>
+       </div>
+       <!-- ✅ PILIHAN UKURAN KERTAS CETAK -->
+       <div class="setting-card">
+         <label>Ukuran Kertas Cetak</label>
+         <select id="ukuranKertas">
+           <option value="4r" selected>4R — 4 × 6 inci / 10,2 × 15,2 cm</option>
+           <option value="strip">Strip — 2 × 6 inci / 5 × 15 cm</option>
+           <option value="polaroid">Polaroid/Square — 3 × 3 inci / 2,7 × 4 inci</option>
+           <option value="a3">A3 — 29,7 × 42 cm</option>
+           <option value="a4">A4 — 21 × 29,7 cm</option>
+           <option value="a5">A5 — 14,8 × 21 cm</option>
+         </select>
+       </div>
+       <div class="setting-card">
+         <label>Template</label>
+         <input type="file" id="templateInput" accept="image/png,image/jpeg,image/webp" hidden>
+         <button class="secondary-btn" id="btnTemplate" type="button">🖼️ Pilih Template</button>
+         <div id="templateName">Template default</div>
+       </div>
+     </div>
+     <div class="template-preview-box">
+       <img id="templatePreview" src="" alt="Preview template">
+       <div id="templatePlaceholder">Belum ada template</div>
+     </div>
+     <button id="btnMulai" class="primary-btn big" type="button">📸 MULAI PHOTOBOOTH</button>
+   </section>
+   <!-- CAMERA -->
+   <section id="cameraArea" class="panel hidden">
+     <div class="camera-header">
+       <div>
+         <strong id="statusFoto">Siap mengambil foto</strong>
+         <div id="progressFoto">Foto 0 / 4</div>
+       </div>
+       <button id="btnStopCamera" class="danger-btn" type="button">✕ Berhenti</button>
+     </div>
+     <div class="camera-container">
+       <video id="kamera" autoplay playsinline muted></video>
+       <canvas id="cameraOverlay"></canvas>
+       <div id="countdownDisplay"></div>
+     </div>
+     <canvas id="cameraCanvas" class="hidden"></canvas>
+     <button id="btnJepret" class="primary-btn big" type="button">📸 JEPRET</button>
+   </section>
+   <!-- PHOTO GRID — ✅ DITAMBAH: Tombol Retake per foto -->
+   <section id="gridArea" class="panel hidden">
+     <div class="section-title">
+       <div>
+         <h2>Hasil Foto</h2>
+         <p>Tekan <b>📸 Ulang</b> pada foto yang ingin diulang.</p>
+       </div>
+       <button id="btnTambahFoto" class="secondary-btn" type="button">➕ Tambah Foto</button>
+     </div>
+     <div id="photoGrid" class="photo-grid"></div>
+     <div class="grid-actions">
+       <button id="btnGabungkan" class="primary-btn" type="button">🖼️ BUAT HASIL AKHIR</button>
+     </div>
+   </section>
+   <!-- FINAL RESULT — ✅ DITAMBAH: Print & QR Otomatis -->
+   <section id="resultArea" class="panel hidden">
+     <h2>Hasil Akhir</h2>
+     <div class="final-preview">
+       <img id="finalImage" alt="Hasil akhir">
+     </div>
+     <!-- ✅ PILIHAN PRINT & KIRIM FILE -->
+     <div class="print-options">
+       <h3>Pilihan Cetak & Simpan</h3>
+       <label class="radio-option">
+         <input type="radio" name="printChoice" value="yes" checked>
+         ✅ Cetak Langsung
+       </label>
+       <label class="radio-option">
+         <input type="radio" name="printChoice" value="no">
+         ❌ Simpan Saja (Tidak Cetak)
+       </label>
+     </div>
+     <div class="result-actions">
+       <button id="btnSavePhoto" class="primary-btn" type="button">💾 SIMPAN & KIRIM FILE</button>
+       <button id="btnMakeGif" class="secondary-btn" type="button">🎞️ BUAT GIF</button>
+       <button id="btnMakeVideo" class="secondary-btn" type="button">🎥 BUAT VIDEO</button>
+       <button id="btnNewSession" class="danger-btn" type="button">🔄 SESI BARU</button>
+     </div>
+     <!-- MEDIA PREVIEW -->
+     <div id="mediaArea" class="media-area hidden">
+       <h3>Media Tambahan</h3>
+       <img id="gifPreview" class="media-preview hidden" alt="GIF">
+       <video id="videoPreview" class="media-preview hidden" controls></video>
+     </div>
+     <!-- UPLOAD STATUS -->
+     <div id="uploadStatus" class="upload-status hidden">
+       <div class="loading-spinner"></div>
+       <strong id="uploadText">Mengupload hasil ke server...</strong>
+       <div class="progress-container">
+         <div id="uploadProgress"></div>
+       </div>
+     </div>
+     <!-- ✅ QR CODE — MUNCUL OTOMATIS SETELAH UPLOAD -->
+     <div id="qrArea" class="qr-area hidden">
+       <div class="success-icon">✅</div>
+       <h2>Foto Berhasil Disimpan!</h2>
+       <p>Scan QR Code untuk membuka & mengunduh hasil.</p>
+       <div class="qr-box">
+         <canvas id="qrCanvas"></canvas>
+       </div>
+       <div class="share-url">
+         <input id="resultUrl" type="text" readonly>
+         <button id="btnCopyUrl" class="secondary-btn" type="button">📋 Salin Link</button>
+       </div>
+       <a id="openResult" class="primary-btn link-button" target="_blank" rel="noopener">🌐 Buka Hasil</a>
+       <!-- ✅ TOMBOL PRINT -->
+       <button id="btnPrint" class="primary-btn" type="button">🖨️ CETAK FOTO</button>
+     </div>
+   </section>
+   <!-- MESSAGE -->
+   <div id="messageBox" class="message hidden"></div>
+ </div>
+ <script src="script.js"></script>
+ </body>
+ </html>
