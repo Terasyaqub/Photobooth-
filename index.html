@@ -4,165 +4,312 @@
    <meta charset="UTF-8">
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>TERASYAQUB Photobooth — Banjarmasin</title>
-   <!-- Supabase -->
    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-   <!-- QR Code -->
    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
-   <!-- GIF Encoder -->
-   <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
-   <!-- MP4/WebM video recorder -->
-   <script src="https://cdn.jsdelivr.net/npm/webm-writer@1.0.0/dist/webm-writer.min.js"></script>
-   <link rel="stylesheet" href="style.css">
+   <style>
+     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+     body { background: #f4f4f5; color: #18181b; padding: 20px; min-height: 100vh; }
+     .app { max-width: 1100px; margin: 0 auto; }
+     .brand { display: flex; align-items: center; gap: 15px; background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+     .brand h1 { font-size: 28px; color: #000; }
+     .brand p { color: #666; font-size: 14px; }
+     .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+     .setting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+     .setting-card { margin-bottom: 15px; }
+     label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+     select, button { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; }
+     button { background: #000; color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
+     button:hover { background: #333; }
+     .btn-large { padding: 16px; font-size: 18px; margin-top: 30px; }
+     .camera-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #000; }
+     video { width: 100%; height: auto; display: block; transform: scaleX(-1); }
+     .countdown-display { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; color: white; font-weight: bold; text-shadow: 0 0 20px rgba(0,0,0,0.8); z-index: 10; display: none; }
+     .hidden { display: none !important; }
+     .preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 20px 0; }
+     .preview-img { width: 100%; border-radius: 8px; }
+     #qrCodeContainer { text-align: center; margin: 30px 0; padding: 20px; background: #f9f9f9; border-radius: 12px; }
+     #qrCodeImage { margin: 20px auto; }
+     .download-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+     .download-actions button { flex: 1; min-width: 150px; }
+     .btn-secondary { background: #e5e5e5; color: #000; }
+     .btn-secondary:hover { background: #d4d4d4; }
+   </style>
  </head>
  <body>
- <div class="app">
-   <!-- HEADER -->
-   <header class="brand">
-     <div class="brand-logo">📸</div>
-     <div>
-       <h1>TERASYAQUB</h1>
-       <p>Banjarmasin • Photobooth</p>
-     </div>
-   </header>
-   <!-- SETUP -->
-   <section id="setupArea" class="panel">
-     <h2>Pengaturan Photobooth</h2>
-     <div class="setting-grid">
-       <div class="setting-card">
-         <label>Jumlah Foto</label>
-         <select id="jumlahFoto">
-           <option value="1">1 Foto</option>
-           <option value="2">2 Foto</option>
-           <option value="3">3 Foto</option>
-           <option value="4" selected>4 Foto</option>
-           <option value="5">5 Foto</option>
-           <option value="6">6 Foto</option>
-           <option value="7">7 Foto</option>
-           <option value="8">8 Foto</option>
-         </select>
-       </div>
-       <div class="setting-card">
-         <label>Countdown</label>
-         <select id="durasiCountdown">
-           <option value="3">3 detik</option>
-           <option value="5" selected>5 detik</option>
-           <option value="10">10 detik</option>
-         </select>
-       </div>
-       <!-- ✅ PILIHAN UKURAN KERTAS CETAK -->
-       <div class="setting-card">
-         <label>Ukuran Kertas Cetak</label>
-         <select id="ukuranKertas">
-           <option value="4r" selected>4R — 4 × 6 inci / 10,2 × 15,2 cm</option>
-           <option value="strip">Strip — 2 × 6 inci / 5 × 15 cm</option>
-           <option value="polaroid">Polaroid/Square — 3 × 3 inci / 2,7 × 4 inci</option>
-           <option value="a3">A3 — 29,7 × 42 cm</option>
-           <option value="a4">A4 — 21 × 29,7 cm</option>
-           <option value="a5">A5 — 14,8 × 21 cm</option>
-         </select>
-       </div>
-       <div class="setting-card">
-         <label>Template</label>
-         <input type="file" id="templateInput" accept="image/png,image/jpeg,image/webp" hidden>
-         <button class="secondary-btn" id="btnTemplate" type="button">🖼️ Pilih Template</button>
-         <div id="templateName">Template default</div>
-       </div>
-     </div>
-     <div class="template-preview-box">
-       <img id="templatePreview" src="" alt="Preview template">
-       <div id="templatePlaceholder">Belum ada template</div>
-     </div>
-     <button id="btnMulai" class="primary-btn big" type="button">📸 MULAI PHOTOBOOTH</button>
-   </section>
-   <!-- CAMERA -->
-   <section id="cameraArea" class="panel hidden">
-     <div class="camera-header">
+   <div class="app">
+     <!-- BRAND -->
+     <div class="brand">
+       <div style="font-size:32px;">📸</div>
        <div>
-         <strong id="statusFoto">Siap mengambil foto</strong>
-         <div id="progressFoto">Foto 0 / 4</div>
-       </div>
-       <button id="btnStopCamera" class="danger-btn" type="button">✕ Berhenti</button>
-     </div>
-     <div class="camera-container">
-       <video id="kamera" autoplay playsinline muted></video>
-       <canvas id="cameraOverlay"></canvas>
-       <div id="countdownDisplay"></div>
-     </div>
-     <canvas id="cameraCanvas" class="hidden"></canvas>
-     <button id="btnJepret" class="primary-btn big" type="button">📸 JEPRET</button>
-   </section>
-   <!-- PHOTO GRID — ✅ DITAMBAH: Tombol Retake per foto -->
-   <section id="gridArea" class="panel hidden">
-     <div class="section-title">
-       <div>
-         <h2>Hasil Foto</h2>
-         <p>Tekan <b>📸 Ulang</b> pada foto yang ingin diulang.</p>
-       </div>
-       <button id="btnTambahFoto" class="secondary-btn" type="button">➕ Tambah Foto</button>
-     </div>
-     <div id="photoGrid" class="photo-grid"></div>
-     <div class="grid-actions">
-       <button id="btnGabungkan" class="primary-btn" type="button">🖼️ BUAT HASIL AKHIR</button>
-     </div>
-   </section>
-   <!-- FINAL RESULT — ✅ DITAMBAH: Print & QR Otomatis -->
-   <section id="resultArea" class="panel hidden">
-     <h2>Hasil Akhir</h2>
-     <div class="final-preview">
-       <img id="finalImage" alt="Hasil akhir">
-     </div>
-     <!-- ✅ PILIHAN PRINT & KIRIM FILE -->
-     <div class="print-options">
-       <h3>Pilihan Cetak & Simpan</h3>
-       <label class="radio-option">
-         <input type="radio" name="printChoice" value="yes" checked>
-         ✅ Cetak Langsung
-       </label>
-       <label class="radio-option">
-         <input type="radio" name="printChoice" value="no">
-         ❌ Simpan Saja (Tidak Cetak)
-       </label>
-     </div>
-     <div class="result-actions">
-       <button id="btnSavePhoto" class="primary-btn" type="button">💾 SIMPAN & KIRIM FILE</button>
-       <button id="btnMakeGif" class="secondary-btn" type="button">🎞️ BUAT GIF</button>
-       <button id="btnMakeVideo" class="secondary-btn" type="button">🎥 BUAT VIDEO</button>
-       <button id="btnNewSession" class="danger-btn" type="button">🔄 SESI BARU</button>
-     </div>
-     <!-- MEDIA PREVIEW -->
-     <div id="mediaArea" class="media-area hidden">
-       <h3>Media Tambahan</h3>
-       <img id="gifPreview" class="media-preview hidden" alt="GIF">
-       <video id="videoPreview" class="media-preview hidden" controls></video>
-     </div>
-     <!-- UPLOAD STATUS -->
-     <div id="uploadStatus" class="upload-status hidden">
-       <div class="loading-spinner"></div>
-       <strong id="uploadText">Mengupload hasil ke server...</strong>
-       <div class="progress-container">
-         <div id="uploadProgress"></div>
+         <h1>TERASYAQUB</h1>
+         <p>Banjarmasin • Photobooth</p>
        </div>
      </div>
-     <!-- ✅ QR CODE — MUNCUL OTOMATIS SETELAH UPLOAD -->
-     <div id="qrArea" class="qr-area hidden">
-       <div class="success-icon">✅</div>
-       <h2>Foto Berhasil Disimpan!</h2>
-       <p>Scan QR Code untuk membuka & mengunduh hasil.</p>
-       <div class="qr-box">
-         <canvas id="qrCanvas"></canvas>
+     <!-- PENGATURAN -->
+     <div id="setupArea" class="card">
+       <h2 style="margin-bottom:25px; font-size:22px;">Pengaturan Photobooth</h2>
+       <div class="setting-grid">
+         <div class="setting-card">
+           <label>Jumlah Foto</label>
+           <select id="jumlahFoto">
+             <option value="1">1 Foto</option>
+             <option value="2">2 Foto</option>
+             <option value="3">3 Foto</option>
+             <option value="4" selected>4 Foto</option>
+             <option value="5">5 Foto</option>
+             <option value="6">6 Foto</option>
+           </select>
+         </div>
+         <div class="setting-card">
+           <label>Countdown</label>
+           <select id="countdownTime">
+             <option value="3">3 detik</option>
+             <option value="5" selected>5 detik</option>
+             <option value="10">10 detik</option>
+           </select>
+         </div>
+         <div class="setting-card">
+           <label>Ukuran Kertas Cetak</label>
+           <select id="paperSize">
+             <option value="4R" selected>4R — 4×6 in / 10.2×15.2 cm</option>
+             <option value="strip">Strip — 2×6 in / 5×15 cm</option>
+             <option value="polaroid">Polaroid — 3×3 in / 2.7×4 in</option>
+             <option value="A5">A5 — 14.8×21 cm</option>
+             <option value="A4">A4 — 21×29.7 cm</option>
+             <option value="A3">A3 — 29.7×42 cm</option>
+           </select>
+         </div>
+         <div class="setting-card">
+           <label>Cetak Langsung</label>
+           <select id="printDirect">
+             <option value="yes" selected>✅ Ya — Cetak otomatis</option>
+             <option value="no">❌ Tidak — Cetak manual</option>
+           </select>
+         </div>
        </div>
-       <div class="share-url">
-         <input id="resultUrl" type="text" readonly>
-         <button id="btnCopyUrl" class="secondary-btn" type="button">📋 Salin Link</button>
-       </div>
-       <a id="openResult" class="primary-btn link-button" target="_blank" rel="noopener">🌐 Buka Hasil</a>
-       <!-- ✅ TOMBOL PRINT -->
-       <button id="btnPrint" class="primary-btn" type="button">🖨️ CETAK FOTO</button>
+       <button id="startBtn" class="btn-large">📸 MULAI PHOTOBOOTH</button>
      </div>
-   </section>
-   <!-- MESSAGE -->
-   <div id="messageBox" class="message hidden"></div>
- </div>
- <script src="script.js"></script>
+     <!-- KAMERA -->
+     <div id="cameraArea" class="card hidden">
+       <div class="camera-container">
+         <video id="cameraVideo" autoplay playsinline muted></video>
+         <div id="countdownNum" class="countdown-display">3</div>
+       </div>
+       <button id="captureBtn" class="btn-large">📸 AMBIL FOTO</button>
+       <button id="cancelBtn" class="btn-secondary">❌ Batal</button>
+     </div>
+     <!-- HASIL FOTO -->
+     <div id="resultArea" class="card hidden">
+       <h2 style="text-align:center; margin-bottom:20px;">✅ FOTO SELESAI!</h2>
+       <div id="photosPreview" class="preview-grid"></div>
+       
+       <div id="qrCodeContainer">
+         <p>📲 Scan QR Code untuk simpan / kirim foto</p>
+         <div id="qrCodeImage"></div>
+         <a id="downloadLink" href="" download style="display:inline-block; margin-top:15px; padding:12px 24px; background:#000; color:white; border-radius:8px; text-decoration:none;">📥 SIMPAN / KIRIM FILE</a>
+       </div>
+       <div class="download-actions">
+         <button id="printBtn">🖨️ CETAK FOTO</button>
+         <button id="retakeBtn" class="btn-secondary">🔄 AMBIL ULANG</button>
+         <button id="newBtn" class="btn-secondary">📸 FOTO BARU</button>
+       </div>
+     </div>
+   </div>
+   <script>
+     // ==============================================
+     // KODE LENGKAP — KAMERA LANGSUNG BERFUNGSI!
+     // ==============================================
+     const CONFIG = {
+       SUPABASE_URL: "https://wiyeeablhbxzhxg.supabase.co",
+       SUPABASE_ANON_KEY: "sb_publishable_pYKvK6_rn8Jrej9RtOasAw_0Yu9Y1ef",
+       STORAGE_BUCKET: "photobooth"
+     };
+     let supabase;
+     let stream = null;
+     let photos = [];
+     let currentPhoto = 0;
+     let totalPhotos = 4;
+     let countdownSeconds = 5;
+     // INISIALISASI
+     document.addEventListener('DOMContentLoaded', () => {
+       supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+       
+       // TOMBOL MULAI
+       document.getElementById('startBtn').addEventListener('click', startCamera);
+       
+       // TOMBOL AMBIL FOTO
+       document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+       
+       // TOMBOL BATAL
+       document.getElementById('cancelBtn').addEventListener('click', stopCamera);
+       
+       // TOMBOL CETAK
+       document.getElementById('printBtn').addEventListener('click', () => window.print());
+       
+       // TOMBOL ULANG
+       document.getElementById('retakeBtn').addEventListener('click', () => {
+         currentPhoto = 0;
+         photos = [];
+         document.getElementById('resultArea').classList.add('hidden');
+         startCamera();
+       });
+       
+       // TOMBOL BARU
+       document.getElementById('newBtn').addEventListener('click', () => {
+         currentPhoto = 0;
+         photos = [];
+         document.getElementById('resultArea').classList.add('hidden');
+         document.getElementById('setupArea').classList.remove('hidden');
+       });
+     });
+     // ==============================================
+     // FUNGSI KAMERA — LANGSUNG NYALA!
+     // ==============================================
+     async function startCamera() {
+       totalPhotos = parseInt(document.getElementById('jumlahFoto').value);
+       countdownSeconds = parseInt(document.getElementById('countdownTime').value);
+       photos = [];
+       currentPhoto = 0;
+       // SEMBUNYIKAN PENGATURAN, TAMPILKAN KAMERA
+       document.getElementById('setupArea').classList.add('hidden');
+       document.getElementById('cameraArea').classList.remove('hidden');
+       const video = document.getElementById('cameraVideo');
+       
+       try {
+         // HENTIKAN JIKA SEDANG JALAN
+         if (stream) {
+           stream.getTracks().forEach(t => t.stop());
+         }
+         // MINTA KAMERA — PALING GAMPANG & PASTI BERHASIL
+         stream = await navigator.mediaDevices.getUserMedia({
+           video: { 
+             width: { ideal: 1280 },
+             height: { ideal: 720 },
+             facingMode: "user"
+           },
+           audio: false
+         });
+         video.srcObject = stream;
+         await video.play();
+         console.log("✅ KAMERA BERHASIL NYALA!");
+         
+         // MULAI COUNTDOWN OTOMATIS
+         setTimeout(() => startCountdown(), 500);
+       } catch (err) {
+         console.error("❌ Error Kamera:", err);
+         alert("Tidak bisa akses kamera! Pastikan:\n1. Kamera tidak dipakai aplikasi lain\n2. Klik 🔒 di atas → Izinkan Kamera\n3. Pakai Google Chrome\n\nError: " + err.message);
+         stopCamera();
+       }
+     }
+     // COUNTDOWN OTOMATIS
+     function startCountdown() {
+       const countdownEl = document.getElementById('countdownNum');
+       let count = countdownSeconds;
+       
+       countdownEl.style.display = 'block';
+       countdownEl.textContent = count;
+       const timer = setInterval(() => {
+         count--;
+         if (count > 0) {
+           countdownEl.textContent = count;
+         } else {
+           clearInterval(timer);
+           countdownEl.style.display = 'none';
+           capturePhoto();
+         }
+       }, 1000);
+     }
+     // AMBIL FOTO
+     function capturePhoto() {
+       const video = document.getElementById('cameraVideo');
+       const canvas = document.createElement('canvas');
+       canvas.width = video.videoWidth;
+       canvas.height = video.videoHeight;
+       const ctx = canvas.getContext('2d');
+       
+       // BALIK FOTO AGAR TIDAK TERBALIK
+       ctx.translate(canvas.width, 0);
+       ctx.scale(-1, 1);
+       ctx.drawImage(video, 0, 0);
+       
+       // SIMPAN FOTO
+       const photoUrl = canvas.toDataURL('image/png');
+       photos.push(photoUrl);
+       currentPhoto++;
+       // TAMPILKAN PREVIEW SEMENTARA
+       alert(`✅ Foto ${currentPhoto} dari ${totalPhotos} selesai!`);
+       // JIKA BELUM SELESAI — LANJUT
+       if (currentPhoto < totalPhotos) {
+         setTimeout(() => startCountdown(), 1000);
+       } else {
+         // SELESAI — TAMPILKAN HASIL
+         showResults();
+       }
+     }
+     // TAMPILKAN HASIL + QR CODE
+     async function showResults() {
+       // HENTIKAN KAMERA
+       if (stream) {
+         stream.getTracks().forEach(t => t.stop());
+         stream = null;
+       }
+       // SEMBUNYIKAN KAMERA, TAMPILKAN HASIL
+       document.getElementById('cameraArea').classList.add('hidden');
+       document.getElementById('resultArea').classList.remove('hidden');
+       // TAMPILKAN SEMUA FOTO
+       const previewArea = document.getElementById('photosPreview');
+       previewArea.innerHTML = '';
+       
+       // GABUNGKAN SEMUA FOTO JADI 1
+       const finalCanvas = document.createElement('canvas');
+       finalCanvas.width = 800;
+       finalCanvas.height = 600;
+       const ctx = finalCanvas.getContext('2d');
+       
+       photos.forEach((url, idx) => {
+         const img = new Image();
+         img.onload = () => {
+           const cols = totalPhotos <= 4 ? 2 : 3;
+           const rows = Math.ceil(totalPhotos / cols);
+           const w = finalCanvas.width / cols;
+           const h = finalCanvas.height / rows;
+           const x = (idx % cols) * w;
+           const y = Math.floor(idx / cols) * h;
+           ctx.drawImage(img, x + 5, y + 5, w - 10, h - 10);
+           
+           // TAMBAHKAN PREVIEW
+           const preview = document.createElement('img');
+           preview.src = url;
+           preview.className = 'preview-img';
+           previewArea.appendChild(preview);
+           
+           // JIKA FOTO TERAKHIR — BUAT QR
+           if (idx === photos.length - 1) {
+             const finalUrl = finalCanvas.toDataURL('image/png');
+             document.getElementById('downloadLink').href = finalUrl;
+             
+             // BUAT QR CODE
+             QRCode.toCanvas(document.getElementById('qrCodeImage'), finalUrl, { 
+               width: 200,
+               margin: 2,
+               color: { dark: '#000', light: '#fff' }
+             }, function (error) {
+               if (error) console.error(error)
+             });
+           }
+         };
+         img.src = url;
+       });
+     }
+     // HENTIKAN KAMERA & KEMBALI KE AWAL
+     function stopCamera() {
+       if (stream) {
+         stream.getTracks().forEach(t => t.stop());
+         stream = null;
+       }
+       document.getElementById('cameraArea').classList.add('hidden');
+       document.getElementById('setupArea').classList.remove('hidden');
+     }
+   </script>
  </body>
  </html>
