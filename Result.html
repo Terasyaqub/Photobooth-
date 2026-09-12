@@ -415,11 +415,11 @@
 
 
     const SUPABASE_URL =
-      CONFIG.SUPABASE_URL || "";
+      CONFIG.SUPABASE_URL || "https://wiyeeablhbxzhxg.supabase.co";
 
 
     const SUPABASE_ANON_KEY =
-      CONFIG.SUPABASE_ANON_KEY || "";
+      CONFIG.SUPABASE_ANON_KEY || "sb_publishable_pYKvK6_rn8Jrej9RtOasAw_0Yu9Y1ef";
 
 
     /* =====================================================
@@ -516,24 +516,16 @@
 
 
     if (
-      SUPABASE_URL &&
-      SUPABASE_ANON_KEY &&
-      !SUPABASE_URL.includes(
-        "MASUKKAN_SUPABASE"
-      ) &&
-      !SUPABASE_ANON_KEY.includes(
-        "MASUKKAN_SUPABASE"
-      )
-    ) {
-
-      supabaseClient =
-        window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_ANON_KEY
-        );
-
-    }
-
+  SUPABASE_URL &&
+  SUPABASE_ANON_KEY &&
+  SUPABASE_URL !== "" &&
+  SUPABASE_ANON_KEY !== ""
+) {
+  supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+}
 
     /* =====================================================
        GET SESSION ID
@@ -557,18 +549,12 @@
     ====================================================== */
 
     function showError(message) {
+  loadingCard.hidden = true;
+  resultCard.hidden = true;
+  errorCard.hidden = false;
+  errorMessage.textContent = message || "Hasil foto tidak ditemukan.";
+}
 
-      loadingCard.hidden = true;
-
-      resultCard.hidden = true;
-
-      errorCard.hidden = false;
-
-      errorMessage.textContent =
-        message ||
-        "Hasil foto tidak ditemukan.";
-
-    }
 
 
     /* =====================================================
@@ -603,11 +589,7 @@
         new Date(dateValue);
 
 
-      if (
-        Number.isNaN(
-          date.getTime()
-        )
-      ) {
+      if (isNaN(date)) { 
 
         return "";
 
