@@ -17,7 +17,7 @@
      .setting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
      .setting-card { margin-bottom: 15px; }
      label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
-     select, button { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; }
+     select, button, input[type="file"] { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; }
      button { background: #000; color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
      button:hover { background: #333; }
      .btn-large { padding: 16px; font-size: 18px; margin-top: 30px; }
@@ -28,11 +28,12 @@
      .preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 20px 0; }
      .preview-img { width: 100%; border-radius: 8px; }
      #qrCodeContainer { text-align: center; margin: 30px 0; padding: 20px; background: #f9f9f9; border-radius: 12px; }
-     #qrCodeImage { margin: 20px auto; }
      .download-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
      .download-actions button { flex: 1; min-width: 150px; }
      .btn-secondary { background: #e5e5e5; color: #000; }
      .btn-secondary:hover { background: #d4d4d4; }
+     .template-preview { width: 100%; max-width: 300px; margin-top: 10px; border-radius: 8px; display: none; }
+     .error-box { background: #fee; color: #c00; padding: 15px; border-radius: 8px; margin: 15px 0; display: none; }
    </style>
  </head>
  <body>
@@ -48,6 +49,9 @@
      <!-- PENGATURAN -->
      <div id="setupArea" class="card">
        <h2 style="margin-bottom:25px; font-size:22px;">Pengaturan Photobooth</h2>
+       
+       <div id="errorBox" class="error-box"></div>
+       
        <div class="setting-grid">
          <div class="setting-card">
            <label>Jumlah Foto</label>
@@ -86,6 +90,11 @@
              <option value="no">❌ Tidak — Cetak manual</option>
            </select>
          </div>
+         <div class="setting-card" style="grid-column: 1 / -1;">
+           <label>Upload Template / Bingkai Foto</label>
+           <input type="file" id="templateUpload" accept="image/*">
+           <img id="templatePreview" class="template-preview" alt="Preview Template">
+         </div>
        </div>
        <button id="startBtn" class="btn-large">📸 MULAI PHOTOBOOTH</button>
      </div>
@@ -110,14 +119,14 @@
        </div>
        <div class="download-actions">
          <button id="printBtn">🖨️ CETAK FOTO</button>
-         <button id="retakeBtn" class="btn-secondary">🔄 AMBIL ULANG</button>
+         <button id="retakeBtn" class="btn-secondary">🔄 AMBIL ULANG SEMUA</button>
          <button id="newBtn" class="btn-secondary">📸 FOTO BARU</button>
        </div>
      </div>
    </div>
    <script>
      // ==============================================
-     // KODE LENGKAP — KAMERA LANGSUNG BERFUNGSI!
+     // KODE LENGKAP — KAMERA + TEMPLATE + QR + CETAK
      // ==============================================
      const CONFIG = {
        SUPABASE_URL: "https://wiyeeablhbxzhxg.supabase.co",
@@ -130,9 +139,38 @@
      let currentPhoto = 0;
      let totalPhotos = 4;
      let countdownSeconds = 5;
+     let templateImage = null;
+     // TAMPILKAN PESAN ERROR
+     function showError(msg) {
+       const box = document.getElementById('errorBox');
+       box.textContent = msg;
+       box.style.display = 'block';
+       setTimeout(() => box.style.display = 'none', 8000);
+     }
      // INISIALISASI
      document.addEventListener('DOMContentLoaded', () => {
-       supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+       try {
+         supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+       } catch(e) {
+         console.warn('Supabase tidak tersedia:', e);
+       }
+       
+       // UPLOAD TEMPLATE
+       document.getElementById('templateUpload').addEventListener('change', (e) => {
+         const file = e.target.files[0];
+         if (!file) return;
+         const reader = new FileReader();
+         reader.onload = (event) => {
+           templateImage = new Image();
+           templateImage.onload = () => {
+             const preview = document.getElementById('templatePreview');
+             preview.src = event.target.result;
+             preview.style.display = 'block';
+           };
+           templateImage.src = event.target.result;
+         };
+         reader.readAsDataURL(file);
+       });
        
        // TOMBOL MULAI
        document.getElementById('startBtn').addEventListener('click', startCamera);
@@ -148,168 +186,3 @@
        
        // TOMBOL ULANG
        document.getElementById('retakeBtn').addEventListener('click', () => {
-         currentPhoto = 0;
-         photos = [];
-         document.getElementById('resultArea').classList.add('hidden');
-         startCamera();
-       });
-       
-       // TOMBOL BARU
-       document.getElementById('newBtn').addEventListener('click', () => {
-         currentPhoto = 0;
-         photos = [];
-         document.getElementById('resultArea').classList.add('hidden');
-         document.getElementById('setupArea').classList.remove('hidden');
-       });
-     });
-     // ==============================================
-     // FUNGSI KAMERA — LANGSUNG NYALA!
-     // ==============================================
-     async function startCamera() {
-       totalPhotos = parseInt(document.getElementById('jumlahFoto').value);
-       countdownSeconds = parseInt(document.getElementById('countdownTime').value);
-       photos = [];
-       currentPhoto = 0;
-       // SEMBUNYIKAN PENGATURAN, TAMPILKAN KAMERA
-       document.getElementById('setupArea').classList.add('hidden');
-       document.getElementById('cameraArea').classList.remove('hidden');
-       const video = document.getElementById('cameraVideo');
-       
-       try {
-         // HENTIKAN JIKA SEDANG JALAN
-         if (stream) {
-           stream.getTracks().forEach(t => t.stop());
-         }
-         // MINTA KAMERA — PALING GAMPANG & PASTI BERHASIL
-         stream = await navigator.mediaDevices.getUserMedia({
-           video: { 
-             width: { ideal: 1280 },
-             height: { ideal: 720 },
-             facingMode: "user"
-           },
-           audio: false
-         });
-         video.srcObject = stream;
-         await video.play();
-         console.log("✅ KAMERA BERHASIL NYALA!");
-         
-         // MULAI COUNTDOWN OTOMATIS
-         setTimeout(() => startCountdown(), 500);
-       } catch (err) {
-         console.error("❌ Error Kamera:", err);
-         alert("Tidak bisa akses kamera! Pastikan:\n1. Kamera tidak dipakai aplikasi lain\n2. Klik 🔒 di atas → Izinkan Kamera\n3. Pakai Google Chrome\n\nError: " + err.message);
-         stopCamera();
-       }
-     }
-     // COUNTDOWN OTOMATIS
-     function startCountdown() {
-       const countdownEl = document.getElementById('countdownNum');
-       let count = countdownSeconds;
-       
-       countdownEl.style.display = 'block';
-       countdownEl.textContent = count;
-       const timer = setInterval(() => {
-         count--;
-         if (count > 0) {
-           countdownEl.textContent = count;
-         } else {
-           clearInterval(timer);
-           countdownEl.style.display = 'none';
-           capturePhoto();
-         }
-       }, 1000);
-     }
-     // AMBIL FOTO
-     function capturePhoto() {
-       const video = document.getElementById('cameraVideo');
-       const canvas = document.createElement('canvas');
-       canvas.width = video.videoWidth;
-       canvas.height = video.videoHeight;
-       const ctx = canvas.getContext('2d');
-       
-       // BALIK FOTO AGAR TIDAK TERBALIK
-       ctx.translate(canvas.width, 0);
-       ctx.scale(-1, 1);
-       ctx.drawImage(video, 0, 0);
-       
-       // SIMPAN FOTO
-       const photoUrl = canvas.toDataURL('image/png');
-       photos.push(photoUrl);
-       currentPhoto++;
-       // TAMPILKAN PREVIEW SEMENTARA
-       alert(`✅ Foto ${currentPhoto} dari ${totalPhotos} selesai!`);
-       // JIKA BELUM SELESAI — LANJUT
-       if (currentPhoto < totalPhotos) {
-         setTimeout(() => startCountdown(), 1000);
-       } else {
-         // SELESAI — TAMPILKAN HASIL
-         showResults();
-       }
-     }
-     // TAMPILKAN HASIL + QR CODE
-     async function showResults() {
-       // HENTIKAN KAMERA
-       if (stream) {
-         stream.getTracks().forEach(t => t.stop());
-         stream = null;
-       }
-       // SEMBUNYIKAN KAMERA, TAMPILKAN HASIL
-       document.getElementById('cameraArea').classList.add('hidden');
-       document.getElementById('resultArea').classList.remove('hidden');
-       // TAMPILKAN SEMUA FOTO
-       const previewArea = document.getElementById('photosPreview');
-       previewArea.innerHTML = '';
-       
-       // GABUNGKAN SEMUA FOTO JADI 1
-       const finalCanvas = document.createElement('canvas');
-       finalCanvas.width = 800;
-       finalCanvas.height = 600;
-       const ctx = finalCanvas.getContext('2d');
-       
-       photos.forEach((url, idx) => {
-         const img = new Image();
-         img.onload = () => {
-           const cols = totalPhotos <= 4 ? 2 : 3;
-           const rows = Math.ceil(totalPhotos / cols);
-           const w = finalCanvas.width / cols;
-           const h = finalCanvas.height / rows;
-           const x = (idx % cols) * w;
-           const y = Math.floor(idx / cols) * h;
-           ctx.drawImage(img, x + 5, y + 5, w - 10, h - 10);
-           
-           // TAMBAHKAN PREVIEW
-           const preview = document.createElement('img');
-           preview.src = url;
-           preview.className = 'preview-img';
-           previewArea.appendChild(preview);
-           
-           // JIKA FOTO TERAKHIR — BUAT QR
-           if (idx === photos.length - 1) {
-             const finalUrl = finalCanvas.toDataURL('image/png');
-             document.getElementById('downloadLink').href = finalUrl;
-             
-             // BUAT QR CODE
-             QRCode.toCanvas(document.getElementById('qrCodeImage'), finalUrl, { 
-               width: 200,
-               margin: 2,
-               color: { dark: '#000', light: '#fff' }
-             }, function (error) {
-               if (error) console.error(error)
-             });
-           }
-         };
-         img.src = url;
-       });
-     }
-     // HENTIKAN KAMERA & KEMBALI KE AWAL
-     function stopCamera() {
-       if (stream) {
-         stream.getTracks().forEach(t => t.stop());
-         stream = null;
-       }
-       document.getElementById('cameraArea').classList.add('hidden');
-       document.getElementById('setupArea').classList.remove('hidden');
-     }
-   </script>
- </body>
- </html>
